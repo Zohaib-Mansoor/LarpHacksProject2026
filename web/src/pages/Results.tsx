@@ -25,14 +25,13 @@ export default function Results() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const root = useRef<HTMLDivElement>(null);
-  const scoreNumRef = useRef<HTMLSpanElement>(null);
-  const animatedOnce = useRef(false);
 
   const token = getRoomToken(roomCode);
   const [view, setView] = useState<RoomView | null>(null);
   const [error, setError] = useState('');
   const [callsign, setCallsign] = useState(() => getProfile().callsign);
   const [posted, setPosted] = useState(false);
+  const completedRoundKey = view?.result ? `${view.code}:${view.round}` : null;
 
   const sync = useCallback(async () => {
     if (!token || !roomCode) return;
@@ -57,30 +56,16 @@ export default function Results() {
 
   useLayoutEffect(() => {
     const el = root.current;
-    if (!el || !view?.result || animatedOnce.current) return;
-    animatedOnce.current = true;
+    if (!el || !completedRoundKey) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-    const myTotal = view.result.yours.reduce((a, b) => a + b, 0);
     const ctx = gsap.context(() => {
       gsap.from('.receipt-panel', { y: 36, autoAlpha: 0, duration: 0.75, ease: 'expo.out' });
       gsap.from('.receipt-stamp', { scale: 2.2, rotate: -14, autoAlpha: 0, duration: 0.55, delay: 0.35, ease: 'back.out(2.2)' });
       gsap.from('.debrief-card', { y: 24, autoAlpha: 0, duration: 0.65, stagger: 0.08, delay: 0.2, ease: 'expo.out' });
-      if (scoreNumRef.current) {
-        const counter = { v: 0 };
-        gsap.to(counter, {
-          v: myTotal,
-          duration: 1.2,
-          delay: 0.25,
-          ease: 'power3.out',
-          onUpdate: () => {
-            if (scoreNumRef.current) scoreNumRef.current.textContent = String(Math.round(counter.v));
-          },
-        });
-      }
     }, el);
     return () => ctx.revert();
-  }, [view]);
+  }, [completedRoundKey]);
 
   if (!token || error) {
     return (
@@ -196,7 +181,7 @@ export default function Results() {
                   <h2>{view.you.name}</h2>
                 </div>
                 <div className="big-pts display tnum">
-                  <span ref={scoreNumRef}>{myScore}</span><small>/{rules.missionMax}</small>
+                  <span>{myScore}</span><small>/{rules.missionMax}</small>
                 </div>
               </div>
               <ul className="goal-result-list">
