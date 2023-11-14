@@ -118,10 +118,15 @@ export class VoiceStore {
     const bot = state.players[1];
     if (!bot) return;
     bot.lastSeen = this.clock();
+    if (state.phase === 'complete' && state.players[0]?.rematch && !bot.rematch)
+      engine.action(state.code, bot.token, { type: 'rematch' });
     if (state.phase === 'prep' && !bot.ready)
       engine.action(state.code, bot.token, { type: 'ready' });
-    if (state.phase !== 'talk') return;
-    if (!state.messages.some((m) => m.speaker === bot.role))
+    if (!['talk', 'finalize'].includes(state.phase) || state.pauseStart) return;
+    if (
+      state.phase === 'talk' &&
+      !state.messages.some((m) => m.speaker === bot.role)
+    )
       engine.action(state.code, bot.token, {
         type: 'message',
         text: 'Scripted practice partner here. Could we find common ground on staged delivery and 525?',
@@ -387,6 +392,7 @@ export class VoiceStore {
       const previousPhase = state.phase,
         previousRound = state.round;
       engine.action(row.code, state.players[seat]!.token, data);
+      if (row.sparring) this.stepBot(engine, state);
       if (previousPhase !== 'talk' && state.phase === 'talk') {
         state.deadline = this.clock() + TALK_MS;
         state.talkStartedAt = this.clock();
@@ -399,7 +405,6 @@ export class VoiceStore {
       if (['complete', 'incomplete'].includes(state.phase))
         state.finishedAt ??= this.clock();
       if (data.type === 'leave' || data.type === 'report') row.queued = false;
-      if (row.sparring) this.stepBot(engine, state);
       return this.view(engine, row, seat);
     });
   }
@@ -680,7 +685,7 @@ export class VoiceStore {
       .set({ callsign })
       .where(
         and(
-          eq(voiceResults.code, code),
+          eq(voiceResults.code, view.code),
           eq(voiceResults.round, view.round),
           eq(voiceResults.userId, userId),
         ),

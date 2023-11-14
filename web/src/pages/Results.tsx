@@ -38,6 +38,7 @@ export default function Results() {
     if (!token || !roomCode) return;
     try {
       const next = await fetchRoom(roomCode, token);
+      setError('');
       setView(next);
       if (next.result) recordCompletedRound(next);
       if (next.phase === 'prep' || next.phase === 'talk') {

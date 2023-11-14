@@ -225,9 +225,8 @@ export function ensureSession(): Promise<void> {
       });
       if (!created.ok) throw new Error("Unable to create guest session.");
     } else if (!me.ok) throw new Error("Unable to connect to your session.");
-  })().catch((error) => {
+  })().finally(() => {
     sessionPromise = undefined;
-    throw error;
   }));
 }
 export async function syncAccount() {
@@ -257,11 +256,15 @@ export async function persistProfile(next: Partial<LocalProfile>) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       ...settings,
-      displayName: next.callsign ?? getProfile().callsign,
-      leaderboardOptIn: next.leaderboardOptIn ?? false,
+      displayName: next.callsign ?? previous.displayName,
+      leaderboardOptIn: next.leaderboardOptIn ?? previous.leaderboardOptIn,
     }),
   });
-  return saveProfile(next);
+  return saveProfile({
+    ...next,
+    callsign: next.callsign ?? String(previous.displayName),
+    leaderboardOptIn: next.leaderboardOptIn ?? !!previous.leaderboardOptIn,
+  });
 }
 
 export async function startSparring(

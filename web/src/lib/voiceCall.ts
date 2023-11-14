@@ -160,6 +160,7 @@ export function useVoiceCall({
   const audioCtxRef = useRef<AudioContext | null>(null);
   const localAnalyserRef = useRef<AnalyserNode | null>(null);
   const remoteAnalyserRef = useRef<AnalyserNode | null>(null);
+  const relayAnalyserRef = useRef<AnalyserNode | null>(null);
   const remoteGainRef = useRef<GainNode | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const transceiverRef = useRef<RTCRtpTransceiver | null>(null);
@@ -210,6 +211,7 @@ export function useVoiceCall({
       remAnalyser.connect(remGain).connect(ctx.destination);
       audioCtxRef.current = ctx;
       remoteAnalyserRef.current = remAnalyser;
+      relayAnalyserRef.current = remAnalyser;
       remoteGainRef.current = remGain;
     }
     if (audioCtxRef.current.state === "suspended") {
@@ -253,6 +255,7 @@ export function useVoiceCall({
     audioCtxRef.current = null;
     localAnalyserRef.current = null;
     remoteAnalyserRef.current = null;
+    relayAnalyserRef.current = null;
     remoteGainRef.current = null;
     try {
       window.speechSynthesis?.cancel();
@@ -488,15 +491,17 @@ export function useVoiceCall({
           buf.getChannelData(0).set(samples);
           const src = ctx.createBufferSource();
           src.buffer = buf;
-          if (remoteAnalyserRef.current) src.connect(remoteAnalyserRef.current);
-          else src.connect(ctx.destination);
+          if (speakerMutedRef.current || rtcStateRef.current === 'connected') return;
+          if (relayAnalyserRef.current) src.connect(relayAnalyserRef.current);
+          else return;
+          remoteAnalyserRef.current = relayAnalyserRef.current;
           const startAt = Math.max(
             ctx.currentTime + 0.02,
             nextPlayTimeRef.current,
           );
           src.start(startAt);
           nextPlayTimeRef.current = startAt + buf.duration;
-          if (rtcStateRef.current !== "connected") setRtcState("relay");
+          setRtcState("relay");
         } catch {}
       })();
     });

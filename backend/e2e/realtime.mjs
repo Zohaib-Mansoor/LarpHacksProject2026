@@ -1,4 +1,4 @@
-/* global console, process, window, RTCPeerConnection, URL */
+/* global console, process, window, RTCPeerConnection, URL, AudioNode, AudioBufferSourceNode, Event */
 import { chromium, expect } from '@playwright/test';
 import { existsSync } from 'node:fs';
 const origin = process.env.E2E_ORIGIN ?? 'http://127.0.0.1:4173';
@@ -17,6 +17,27 @@ const a = await browser.newContext({ permissions: ['microphone'] }),
 for (const context of [a, b])
   await context.addInitScript(() => {
     window.__voiceTestPeers = [];
+    window.__relayPlaybackPaths = [];
+    const edges = new WeakMap();
+    const connect = AudioNode.prototype.connect;
+    AudioNode.prototype.connect = function (destination, ...args) {
+      const result = connect.call(this, destination, ...args);
+      edges.set(this, [...(edges.get(this) ?? []), destination]);
+      return result;
+    };
+    const start = AudioBufferSourceNode.prototype.start;
+    AudioBufferSourceNode.prototype.start = function (...args) {
+      const reachesOutput = (node, seen = new Set()) => {
+        if (node === this.context.destination) return true;
+        if (seen.has(node)) return false;
+        seen.add(node);
+        return (edges.get(node) ?? []).some((next) =>
+          reachesOutput(next, seen),
+        );
+      };
+      window.__relayPlaybackPaths.push(reachesOutput(this));
+      return start.apply(this, args);
+    };
     const Original = RTCPeerConnection;
     window.RTCPeerConnection = class extends Original {
       constructor(config) {
@@ -166,6 +187,30 @@ try {
     'PASS: 10-second warning, 45-second turn switch, real microphone auto-mute and next speaker enabled.',
   );
 
+  // Force a P2P disconnect after ontrack has installed the RTC meter. Relay
+  // playback must still reach the output through its own analyser and mute gain.
+  for (const page of [one, two]) {
+    await page.evaluate(() => {
+      window.__relayPlaybackPaths = [];
+      for (const pc of window.__voiceTestPeers) {
+        pc.close();
+        Object.defineProperty(pc, 'connectionState', { value: 'disconnected' });
+        pc.onconnectionstatechange?.(new Event('connectionstatechange'));
+      }
+    });
+  }
+  await expect
+    .poll(() => one.evaluate(() => window.__relayPlaybackPaths.length), {
+      timeout: 10000,
+    })
+    .toBeGreaterThan(0);
+  expect(
+    await one.evaluate(() => window.__relayPlaybackPaths.every(Boolean)),
+  ).toBe(true);
+  console.log(
+    'PASS: PCM fallback after P2P disconnect remains connected to the audio output.',
+  );
+
   await one.getByRole('button', { name: 'Propose terms', exact: true }).click();
   await one
     .getByRole('button', { name: 'Table $5.50M proposal', exact: true })
@@ -192,12 +237,24 @@ try {
   await expect(
     one.getByRole('heading', { name: '$5.25M', exact: true }),
   ).toBeVisible();
+  await one.route(
+    '**/api/vc/room?*',
+    (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          error: { message: 'Temporary result lookup failure.' },
+        }),
+      }),
+    { times: 1 },
+  );
   await one.reload();
   await expect(
     one.getByRole('heading', { name: '$5.25M', exact: true }),
   ).toBeVisible();
   console.log(
-    'PASS: SSE updates, proposal revision reset, two signatures, persisted results, and reload.',
+    'PASS: SSE updates, proposal revision reset, two signatures, persisted results, reload, and recovery from a failed lookup.',
   );
 
   await one.goto(`${origin}/account`);

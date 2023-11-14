@@ -378,6 +378,68 @@ describe('one-origin database demo', () => {
 });
 
 describe('React realtime voice + persistent backend', () => {
+  it('lets the practice partner sign during finalization and accept a rematch', async () => {
+    const a = await guest();
+    const room = (
+      await post('/api/vc/sparring', a, { consent: true, role: 'alex' })
+    ).json();
+    await post('/api/vc/coaching/consent', a, {
+      code: room.code,
+      round: 1,
+      granted: true,
+    });
+    await vc(a, room.code, { type: 'ready' });
+    // Keep the human present through all six speaking turns.
+    for (let i = 0; i < 54; i++) {
+      now += 5000;
+      await built.app.inject({
+        url: `/api/vc/room?code=${room.code}`,
+        headers: a,
+      });
+    }
+    const offer = await vc(a, room.code, {
+      type: 'propose',
+      deal: { price: 525, package: 'phased' },
+    });
+    expect(offer.json().phase).toBe('finalize');
+    expect(offer.json().accepted).toContain('morgan');
+    const result = await vc(a, room.code, { type: 'confirm', revision: 1 });
+    expect(result.json().phase).toBe('complete');
+    const rematch = await vc(a, room.code, { type: 'rematch' });
+    expect(rematch.json()).toMatchObject({
+      phase: 'prep',
+      round: 2,
+      you: { id: 'morgan' },
+    });
+    expect(rematch.json().coaching.consent).toBe(false);
+    const started = await vc(a, room.code, { type: 'ready' });
+    expect(started.json().speakingTurn).toMatchObject({
+      index: 0,
+      speaker: 'alex',
+    });
+    expect(started.json().deadline - now).toBe(270000);
+  });
+
+  it('publishes verified points when the room code is lowercase', async () => {
+    const a = await guest();
+    const room = (await post('/api/vc/sparring', a, { consent: true })).json();
+    await vc(a, room.code, { type: 'ready' });
+    await vc(a, room.code, {
+      type: 'propose',
+      deal: { price: 525, package: 'phased' },
+    });
+    await vc(a, room.code, { type: 'confirm', revision: 1 });
+    const callsign = `case-${randomUUID().slice(0, 8)}`;
+    const response = await post('/api/vc/leaderboard', a, {
+      code: room.code.toLowerCase(),
+      callsign,
+    });
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json().entries).toContainEqual(
+      expect.objectContaining({ callsign, rounds: 1 }),
+    );
+  });
+
   it('enforces turn ownership and has no coaching without configured keys', async () => {
     const { a, b, code } = await pair();
     await vc(a, code, { type: 'ready' });
