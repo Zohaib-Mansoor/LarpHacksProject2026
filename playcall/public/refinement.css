@@ -136,3 +136,22 @@
     .result-header h1{font-size:31px}.result-header p{font-size:13px}.result-card,.scoreboard{padding:22px}.result-card .eyebrow{font-size:10px}.reveal-box{padding:18px}.result-actions .btn{min-height:48px}
   }
 }
+
+/* ─── Quiet polish pass (lead, 2026-11-01) — visual refinement only; no functional changes ─── */
+html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+body { letter-spacing: -0.005em; }
+::selection { background: rgba(36, 86, 219, 0.16); }
+/* tabular numerals for every time / score / price surface */
+[class*="timer"], [class*="count"], [class*="clock"], [class*="score"], [class*="point"], [class*="price"], [class*="deal"], [class*="amount"] { font-variant-numeric: tabular-nums; }
+/* snappier, calmer controls */
+button { transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, transform 120ms ease; }
+button:not(:disabled):active { transform: scale(0.97); }
+button:not(:disabled):hover { filter: brightness(1.04); }
+:focus-visible { outline: 2px solid #2456db; outline-offset: 2px; }
+/* softer, more consistent elevation on existing card surfaces */
+input, textarea, select { transition: border-color 150ms ease, box-shadow 150ms ease; }
+input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid #2456db; outline-offset: 1px; }
+/* honor reduced motion everywhere */
+@media (prefers-reduced-motion: reduce) {
+  button, input, textarea, select { transition: none !important; transform: none !important; }
+}
