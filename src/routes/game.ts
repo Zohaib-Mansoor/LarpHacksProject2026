@@ -9,7 +9,7 @@ import type { RouteUser } from "./auth.js";
 export interface GameRouteOptions {
   db: typeof database;
   origin: string;
-  auth: ReturnType<typeof import("better-auth").betterAuth>;
+  auth: ReturnType<typeof import("better-auth").betterAuth<any>>;
   requireUser: (request: FastifyRequest) => Promise<RouteUser>;
   roomService: ReturnType<typeof import("../room-service.js").roomService>;
 }

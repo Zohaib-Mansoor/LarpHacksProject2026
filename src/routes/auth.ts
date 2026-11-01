@@ -9,7 +9,7 @@ export interface RouteUser { id: string; isAnonymous?: boolean | null; email?: s
 export interface AuthRouteOptions {
   db: typeof database;
   origin: string;
-  auth: ReturnType<typeof import("better-auth").betterAuth>;
+  auth: ReturnType<typeof import("better-auth").betterAuth<any>>;
   requireUser: (request: FastifyRequest) => Promise<RouteUser>;
 }
 
