@@ -43,6 +43,7 @@ export default function Room() {
 
   const stageRef = useRef<HTMLDivElement>(null);
   const finishedRef = useRef(false);
+  const warnedTurn = useRef('');
 
   const handleRoomView = useCallback(
     (next: RoomView, activeToken: string | null) => {
@@ -81,6 +82,11 @@ export default function Room() {
   );
 
   const voice = useVoiceCall({
+    speakingTurn: view?.speakingTurn ?? null,
+    serverOffset,
+    paused: view?.paused ?? false,
+    coaching: !!view?.coaching?.configured && !!view.coaching.allConsented,
+    round: view?.round ?? 1,
     transcribe: subtitlesOn,
     code: roomCode,
     token,
@@ -95,6 +101,27 @@ export default function Room() {
       handleRoomView(next, token);
     },
   });
+
+  useEffect(() => {
+    const turn = view?.speakingTurn;
+    if (!turn || !voice.canSpeak || voice.turnRemaining > turn.warningMs / 1000 || voice.turnRemaining <= 0) return;
+    const key = `${view.round}:${turn.index}`;
+    if (warnedTurn.current === key) return;
+    warnedTurn.current = key;
+    toast('10 seconds left — wrap up your point. Your microphone will mute when your turn ends.');
+  }, [view?.round, view?.speakingTurn, voice.canSpeak, voice.turnRemaining, toast]);
+
+  async function coachingConsent(granted: boolean) {
+    if (!view) return;
+    try {
+      const response = await fetch('/api/vc/coaching/consent', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ code: roomCode, round: view.round, granted }),
+      });
+      if (!response.ok) throw new Error('Could not save coaching preference.');
+      handleRoomView(await response.json(), token);
+    } catch (error) { toast(error instanceof Error ? error.message : 'Could not save coaching preference.'); }
+  }
 
   // Fallback heartbeat poll (SSE handles real-time <5ms sync; this keeps server presence fresh)
   const sync = useCallback(async () => {
@@ -284,6 +311,15 @@ export default function Room() {
             </div>
 
             {/* Live greenroom mic meter */}
+            <div className="notice" style={{ marginBottom: 18 }}>
+              <strong>Six speaking turns · 45 seconds each</strong>
+              <p>Alex starts. A 10-second reminder helps you wrap up, then your microphone mutes until your next turn. Both microphones stay muted during final signing.</p>
+              <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginTop: 12 }}>
+                <input type="checkbox" checked={view.coaching?.consent ?? false} disabled={!view.coaching?.configured} onChange={e => void coachingConsent(e.target.checked)} />
+                <span>Enable AI coaching for this round. My speaking turns go to ElevenLabs for transcription; the conversation text and my private brief go to the configured LLM ({view.coaching?.model ?? 'not configured'}) for rubric feedback. PlayCall stores transcripts and feedback, not audio files. Provider retention policies apply. Both players must opt in.</span>
+              </label>
+              <p className="mono">{!view.coaching?.configured ? 'AI coaching is unavailable on this server. Mission scoring is enabled.' : view.coaching.allConsented ? 'Both players opted in. Speech recording starts only during your turns.' : 'AI coaching is off until both players opt in.'}</p>
+            </div>
             <div className="greenroom-mic-bar">
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <button
@@ -294,7 +330,7 @@ export default function Room() {
                   {voice.micJoined ? '🎙️ Mic connected ✓' : '🎙️ Allow microphone'}
                 </button>
                 <span style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 600 }}>
-                  {voice.micJoined ? 'Speak now to test your level' : 'Camera hardware stays blocked'}
+                  {voice.micJoined ? 'Mic connected; muted until your speaking turn' : 'Camera hardware stays blocked'}
                 </span>
               </div>
               <div className="waveform is-compact" aria-hidden="true">
@@ -360,11 +396,17 @@ export default function Room() {
               <CountdownRing
                 deadline={view.deadline}
                 serverOffset={serverOffset}
-                totalSeconds={view.phase === 'finalize' ? 45 : 300}
+                totalSeconds={view.phase === 'finalize' ? 45 : 270}
                 label={view.phase === 'finalize' ? 'Final sign' : 'Live VC'}
                 paused={view.paused}
               />
             </div>
+          </div>
+
+          <div className={`notice${voice.canSpeak && voice.turnRemaining <= 10 ? ' notice-danger' : ''}`} role="status" aria-live="polite" style={{ marginBottom: 18 }} data-testid="speaking-turn">
+            <strong>{view.phase === 'finalize' ? 'Speaking time is over · both microphones muted' : view.paused ? 'Turn paused · microphones muted' : view.speakingTurn ? `Turn ${view.speakingTurn.index + 1} / ${view.speakingTurn.total} · ${voice.canSpeak ? 'Your turn' : `${view.speakingTurn.speaker === 'alex' ? 'Alex' : 'Morgan'}’s turn`}` : 'Switching turns · microphones muted'}</strong>
+            {view.phase === 'talk' && view.speakingTurn ? <p><span className="mono tnum" data-testid="turn-seconds">{voice.turnRemaining}s</span> · {voice.canSpeak ? voice.turnRemaining <= 10 ? 'Wrap up — your microphone mutes at zero.' : 'You have the floor. Your microphone mutes automatically at zero.' : 'Listen now. Your microphone opens on your next turn unless you manually mute it.'}</p> : <p>Review and sign the current offer before the final clock runs out.</p>}
+            {view.coaching?.allConsented ? <p>{voice.recordingStatus || 'AI coaching enabled. Speech is transcribed after each turn.'}</p> : <p>AI coaching off for this round.</p>}
           </div>
 
           {!voice.micJoined ? (
@@ -394,6 +436,8 @@ export default function Room() {
                 <span className={`caller-mic-state${voice.micJoined && !voice.effectivelyMuted ? ' is-live' : ''}`}>
                   {!voice.micJoined
                     ? 'Mic disconnected'
+                    : !voice.canSpeak
+                    ? 'Turn muted · listening'
                     : voice.muted
                     ? 'Muted (M)'
                     : voice.pttMode
@@ -505,7 +549,9 @@ export default function Room() {
               >
                 <MicSvg off={voice.effectivelyMuted} />
                 <span>
-                  {voice.muted
+                  {!voice.canSpeak
+                    ? 'Turn muted'
+                    : voice.muted
                     ? 'Unmute (M)'
                     : voice.pttMode
                     ? voice.pttHeld

@@ -3,6 +3,8 @@ import { Type, type TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import type { Database } from './db/client.js';
 import { VoiceStore } from './voice-store.js';
 import { GameError } from './game.js';
+import type { VoiceCoach } from './voice-coach.js';
+import { TURN_COUNT } from './voice-turns.js';
 
 const Code = Type.String({ pattern: '^[A-Za-z0-9]{6}$' });
 const Query = Type.Object({
@@ -16,8 +18,9 @@ export async function registerVoice(
   db: Database,
   principal: (r: FastifyRequest) => Promise<{ id: string }>,
   clock = Date.now,
+  coach?: VoiceCoach,
 ) {
-  const store = new VoiceStore(db, clock);
+  const store = new VoiceStore(db, clock, coach);
   const routes = app.withTypeProvider<TypeBoxTypeProvider>();
   const streams = new Map<string, Set<Peer>>();
   const signals = new Map<
@@ -101,6 +104,99 @@ export async function registerVoice(
   );
   routes.get('/api/vc/room', { schema: { querystring: Query } }, async (r) =>
     store.read((await principal(r)).id, r.query.code),
+  );
+  routes.post(
+    '/api/vc/coaching/consent',
+    {
+      schema: {
+        body: Type.Object(
+          {
+            code: Code,
+            round: Type.Integer({ minimum: 1 }),
+            granted: Type.Boolean(),
+          },
+          { additionalProperties: false },
+        ),
+      },
+    },
+    async (r) => {
+      const view = await store.consent(
+        (await principal(r)).id,
+        r.body.code,
+        r.body.round,
+        r.body.granted,
+      );
+      await publish(view.code);
+      return view;
+    },
+  );
+  routes.post(
+    '/api/vc/coaching/transcribe',
+    {
+      bodyLimit: 1_500_000,
+      config: { rateLimit: { max: 12, timeWindow: '1 minute' } },
+      schema: {
+        body: Type.Object(
+          {
+            code: Code,
+            round: Type.Integer({ minimum: 1 }),
+            turn: Type.Integer({ minimum: 0, maximum: TURN_COUNT - 1 }),
+            mime: Type.Union(
+              ['audio/webm', 'audio/ogg', 'audio/mp4'].map((v) =>
+                Type.Literal(v),
+              ),
+            ),
+            audio: Type.String({
+              minLength: 100,
+              maxLength: 1_400_000,
+              pattern: '^[A-Za-z0-9+/]+={0,2}$',
+            }),
+          },
+          { additionalProperties: false },
+        ),
+      },
+    },
+    async (r) => {
+      const user = await principal(r);
+      const audio = Buffer.from(r.body.audio, 'base64');
+      if (audio.length > 1_000_000)
+        throw new GameError(
+          'CLIP_TOO_LARGE',
+          'Speaking turn audio is too large.',
+          413,
+        );
+      const view = await store.transcribe(
+        user.id,
+        r.body.code,
+        r.body.round,
+        r.body.turn,
+        audio,
+        r.body.mime,
+      );
+      await publish(view.code);
+      return view;
+    },
+  );
+  routes.post(
+    '/api/vc/coaching/evaluate',
+    {
+      config: { rateLimit: { max: 6, timeWindow: '1 minute' } },
+      schema: {
+        body: Type.Object(
+          { code: Code, round: Type.Integer({ minimum: 1 }) },
+          { additionalProperties: false },
+        ),
+      },
+    },
+    async (r) => {
+      const view = await store.evaluate(
+        (await principal(r)).id,
+        r.body.code,
+        r.body.round,
+      );
+      await publish(view.code);
+      return view;
+    },
   );
   routes.post(
     '/api/vc/action',
@@ -355,8 +451,17 @@ export async function registerVoice(
     },
     async (r) => {
       const { user, view } = await active(r, r.body.code);
-      if (!['prep', 'talk', 'finalize'].includes(view.phase))
-        throw new GameError('NOT_STARTED', 'Start the round first.');
+      if (
+        view.phase !== 'talk' ||
+        !view.speakingTurn ||
+        view.speakingTurn.speaker !== view.you.id ||
+        view.paused
+      )
+        throw new GameError(
+          'NOT_YOUR_TURN',
+          'Your microphone is muted outside your speaking turn.',
+          409,
+        );
       const now = Date.now();
       const budget = budgets.get(user.id) ?? { at: now, bytes: 0 };
       if (now - budget.at >= 1000) {

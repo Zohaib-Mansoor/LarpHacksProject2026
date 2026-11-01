@@ -4,6 +4,13 @@ import { and, asc, desc, eq, gt, isNull, sql } from 'drizzle-orm';
 import type { Database } from './db/client.js';
 import { voiceRooms, voiceResults } from './db/schema.js';
 import { GameError } from './game.js';
+import { speakingTurn, TALK_MS, TURN_MS, TURN_COUNT } from './voice-turns.js';
+import {
+  gradeAssessment,
+  type Feedback,
+  type TranscriptEvidence,
+} from './rubric.js';
+import type { VoiceCoach, VoiceGradeInput } from './voice-coach.js';
 
 type Role = 'alex' | 'morgan';
 type Player = {
@@ -17,6 +24,31 @@ type Player = {
   signals: unknown[];
 };
 type State = {
+  talkStartedAt?: number;
+  finishedAt?: number;
+  pauseStart?: number | null;
+  coach?: {
+    consent: Role[];
+    clips: {
+      turn: number;
+      role: Role;
+      status: 'processing' | 'complete' | 'failed';
+      at: number;
+      attempts: number;
+      text?: string;
+    }[];
+    evaluations: Partial<
+      Record<
+        Role,
+        {
+          status: 'processing' | 'complete' | 'failed';
+          at: number;
+          attempts: number;
+          feedback?: Feedback;
+        }
+      >
+    >;
+  };
   matchmaking?: boolean;
   code: string;
   mode: string;
@@ -36,7 +68,9 @@ export type VoiceView = {
   round: number;
   revision: number;
   serverNow: number;
-  you: { id: Role };
+  paused: boolean;
+  you: { id: Role; context: string; objectives: string[] };
+  speakingTurn: ReturnType<typeof speakingTurn>;
   result: null | {
     confirmed: boolean;
     yours: number[];
@@ -68,6 +102,7 @@ export class VoiceStore {
   constructor(
     private db: Database,
     private clock = Date.now,
+    private coachProvider?: VoiceCoach,
   ) {}
   private engine(row?: Row) {
     const engine = new GameStore({ now: this.clock, voiceReady: false });
@@ -116,6 +151,25 @@ export class VoiceStore {
     const view = engine.view(state, state.players[seat]!);
     return {
       ...view,
+      speakingTurn: speakingTurn(state, this.clock()),
+      coaching: {
+        configured: !!this.coachProvider,
+        model: this.coachProvider?.model ?? null,
+        consent: !!state.coach?.consent.includes(view.you.id),
+        allConsented: this.allConsented(row),
+        pendingClips:
+          state.coach?.clips.filter((c) => c.status === 'processing').length ??
+          0,
+        failedClips:
+          state.coach?.clips.filter((c) => c.status === 'failed').length ?? 0,
+        transcript:
+          state.coach?.clips
+            .filter((c) => c.status === 'complete' && c.text)
+            .map((c) => ({ turn: c.turn, speaker: c.role, text: c.text! })) ??
+          [],
+        status: state.coach?.evaluations[view.you.id]?.status ?? 'idle',
+        feedback: state.coach?.evaluations[view.you.id]?.feedback ?? null,
+      },
       token: 'cookie-session',
       sparring: row.sparring,
       matched: !!row.playerTwoId,
@@ -145,7 +199,14 @@ export class VoiceStore {
             confirmed: view.result.confirmed,
             snapshot: view,
           })
-          .onConflictDoNothing();
+          .onConflictDoUpdate({
+            target: [
+              voiceResults.code,
+              voiceResults.round,
+              voiceResults.userId,
+            ],
+            set: { snapshot: view },
+          });
       }
     }
   }
@@ -170,7 +231,11 @@ export class VoiceStore {
         if (row.sparring && state.players[1])
           state.players[1].lastSeen = this.clock();
         engine.auth(row.code, state.players[seat]!.token);
-        const result = run(engine, row, seat);
+        if (state.phase === 'talk' && state.deadline)
+          state.talkStartedAt = state.deadline - TALK_MS;
+        if (['complete', 'incomplete'].includes(state.phase))
+          state.finishedAt ??= this.clock();
+        const result = await run(engine, row, seat);
         await this.save(tx, row, engine);
         return result;
       });
@@ -319,9 +384,276 @@ export class VoiceStore {
   action(userId: string, code: string, data: Record<string, unknown>) {
     return this.locked(userId, code, (engine, row, seat) => {
       const state = row.state as State;
+      const previousPhase = state.phase,
+        previousRound = state.round;
       engine.action(row.code, state.players[seat]!.token, data);
+      if (previousPhase !== 'talk' && state.phase === 'talk') {
+        state.deadline = this.clock() + TALK_MS;
+        state.talkStartedAt = this.clock();
+      }
+      if (previousRound !== state.round) {
+        delete state.coach;
+        delete state.talkStartedAt;
+        delete state.finishedAt;
+      }
+      if (['complete', 'incomplete'].includes(state.phase))
+        state.finishedAt ??= this.clock();
       if (data.type === 'leave' || data.type === 'report') row.queued = false;
       if (row.sparring) this.stepBot(engine, state);
+      return this.view(engine, row, seat);
+    });
+  }
+  private allConsented(row: Row) {
+    const state = row.state as State;
+    return (
+      state.players.length === 2 &&
+      state.players.every(
+        (p, i) =>
+          (row.sparring && i === 1) || state.coach?.consent.includes(p.role),
+      )
+    );
+  }
+  private coachingState(state: State) {
+    return (state.coach ??= { consent: [], clips: [], evaluations: {} });
+  }
+  consent(userId: string, code: string, round: number, granted: boolean) {
+    return this.locked(userId, code, (engine, row, seat) => {
+      const state = row.state as State;
+      if (state.round !== round || !['waiting', 'prep'].includes(state.phase))
+        throw new GameError(
+          'CONSENT_CLOSED',
+          'Choose AI coaching before the call starts.',
+          409,
+        );
+      const coach = this.coachingState(state),
+        role = state.players[seat]!.role;
+      coach.consent = coach.consent.filter((r) => r !== role);
+      if (granted) coach.consent.push(role);
+      return this.view(engine, row, seat);
+    });
+  }
+  async transcribe(
+    userId: string,
+    code: string,
+    round: number,
+    turn: number,
+    audio: Buffer,
+    mime: string,
+  ) {
+    if (!this.coachProvider)
+      throw new GameError(
+        'AI_UNAVAILABLE',
+        'Configure speech and LLM keys to enable coaching.',
+        503,
+      );
+    const claim = await this.locked(userId, code, (_engine, row, seat) => {
+      const state = row.state as State,
+        role = state.players[seat]!.role;
+      if (
+        state.round !== round ||
+        !state.talkStartedAt ||
+        state.phase === 'incomplete' ||
+        !this.allConsented(row)
+      )
+        throw new GameError(
+          'TRANSCRIPT_CLOSED',
+          'Transcription needs both players’ consent for this round.',
+          409,
+        );
+      if (
+        (turn % 2 === 0 ? 'alex' : 'morgan') !== role ||
+        turn < 0 ||
+        turn >= TURN_COUNT
+      )
+        throw new GameError(
+          'WRONG_TURN',
+          'You can upload only your own speaking turn.',
+          403,
+        );
+      if (
+        this.clock() < state.talkStartedAt + (turn + 1) * TURN_MS &&
+        state.phase === 'talk'
+      )
+        throw new GameError(
+          'TURN_ACTIVE',
+          'Wait until this speaking turn ends.',
+          409,
+        );
+      if (state.finishedAt && this.clock() > state.finishedAt + 120_000)
+        throw new GameError(
+          'TRANSCRIPT_CLOSED',
+          'The upload window has ended.',
+          409,
+        );
+      const coach = this.coachingState(state),
+        existing = coach.clips.find((c) => c.turn === turn);
+      if (existing?.status === 'complete') return false;
+      if (
+        existing &&
+        (existing.attempts >= 2 ||
+          (existing.status === 'processing' &&
+            this.clock() - existing.at < 90_000))
+      )
+        throw new GameError(
+          'CLIP_BUSY',
+          'This turn is processing or reached its retry limit.',
+          409,
+        );
+      const clip = {
+        turn,
+        role,
+        status: 'processing' as const,
+        at: this.clock(),
+        attempts: (existing?.attempts ?? 0) + 1,
+      };
+      coach.clips = [...coach.clips.filter((c) => c.turn !== turn), clip];
+      return true;
+    });
+    if (!claim) return this.read(userId, code);
+    let text: string | undefined;
+    try {
+      text = await this.coachProvider.transcribe(audio, mime);
+    } catch {
+      /* Report unavailable, never fabricate speech. */
+    }
+    return this.locked(userId, code, (engine, row, seat) => {
+      const state = row.state as State;
+      if (state.round !== round)
+        throw new GameError('STALE_ROUND', 'The round changed.', 409);
+      const clip = state.coach!.clips.find((c) => c.turn === turn)!;
+      clip.status = text === undefined ? 'failed' : 'complete';
+      clip.text = text?.slice(0, 12_000);
+      return this.view(engine, row, seat);
+    });
+  }
+  async evaluate(userId: string, code: string, round: number) {
+    if (!this.coachProvider)
+      throw new GameError(
+        'AI_UNAVAILABLE',
+        'Configure speech and LLM keys to enable coaching.',
+        503,
+      );
+    const input = await this.locked(userId, code, (engine, row, seat) => {
+      const state = row.state as State,
+        role = state.players[seat]!.role;
+      if (
+        state.round !== round ||
+        state.phase !== 'complete' ||
+        !this.allConsented(row)
+      )
+        throw new GameError(
+          'NOT_FINISHED',
+          'Finish a consented round before requesting feedback.',
+          409,
+        );
+      const coach = this.coachingState(state),
+        existing = coach.evaluations[role];
+      if (existing?.status === 'complete') return null;
+      if (
+        existing &&
+        (existing.attempts >= 2 ||
+          (existing.status === 'processing' &&
+            this.clock() - existing.at < 90_000))
+      )
+        throw new GameError(
+          'GRADE_BUSY',
+          'Feedback is processing or reached its retry limit.',
+          409,
+        );
+      if (coach.clips.some((c) => c.status === 'processing'))
+        throw new GameError(
+          'TRANSCRIBING',
+          'Speech is still being transcribed.',
+          409,
+        );
+      if (state.finishedAt && this.clock() < state.finishedAt + 5000)
+        throw new GameError(
+          'TRANSCRIBING',
+          'Waiting for the final speech upload.',
+          409,
+        );
+      const transcript: TranscriptEvidence[] = coach.clips
+        .filter((c) => c.status === 'complete' && c.text)
+        .map((c) => ({
+          id: `turn-${c.turn}`,
+          seat: c.role === 'alex' ? 0 : 1,
+          text: c.text!,
+          atMs: c.turn * TURN_MS,
+        }));
+      const ownSeat = role === 'alex' ? 0 : 1;
+      const elapsedTurns = Math.min(
+        TURN_COUNT,
+        Math.ceil(
+          Math.max(
+            0,
+            (state.finishedAt ?? this.clock()) - state.talkStartedAt!,
+          ) / TURN_MS,
+        ),
+      );
+      const missingSpeech = Array.from(
+        { length: elapsedTurns },
+        (_, turn) => turn,
+      ).some((turn) => {
+        const turnRole = turn % 2 === 0 ? 'alex' : 'morgan';
+        if (row.sparring && state.players[1]?.role === turnRole) return false;
+        return !coach.clips.some(
+          (c) => c.turn === turn && c.status === 'complete',
+        );
+      });
+      if (
+        missingSpeech ||
+        !transcript.some((t) => t.seat === ownSeat && t.text.length >= 20) ||
+        coach.clips.some((c) => c.status === 'failed')
+      )
+        throw new GameError(
+          'NO_EVIDENCE',
+          'There is not enough reliable speech for a grade. Mission points remain valid.',
+          409,
+        );
+      coach.evaluations[role] = {
+        status: 'processing',
+        at: this.clock(),
+        attempts: (existing?.attempts ?? 0) + 1,
+      };
+      const view = this.view(engine, row, seat);
+      return {
+        role,
+        points: view.result!.yours.reduce((a, b) => a + b, 0),
+        input: {
+          seat: ownSeat,
+          situation:
+            'The Satellite Deal: engineer and client negotiate a satellite prototype contract.',
+          yourBrief: {
+            context: view.you.context,
+            objectives: view.you.objectives,
+          },
+          confirmedDeal: view.result!.confirmed ? state.deal : null,
+          transcript,
+        } satisfies VoiceGradeInput,
+      };
+    });
+    if (!input) return this.read(userId, code);
+    let feedback: Feedback | undefined;
+    try {
+      const assessment = await this.coachProvider.assess(input.input);
+      // The satellite game uses 60 mission points; the shared rubric's legacy scale is 300.
+      feedback = gradeAssessment(
+        assessment,
+        input.input.transcript,
+        input.input.seat,
+        input.points * 5,
+        this.coachProvider.model,
+      );
+    } catch {
+      /* Invalid evidence and provider failures do not produce a score. */
+    }
+    return this.locked(userId, code, (engine, row, seat) => {
+      const state = row.state as State;
+      if (state.round !== round)
+        throw new GameError('STALE_ROUND', 'The round changed.', 409);
+      const evaluation = state.coach!.evaluations[input.role]!;
+      evaluation.status = feedback ? 'complete' : 'failed';
+      evaluation.feedback = feedback;
       return this.view(engine, row, seat);
     });
   }

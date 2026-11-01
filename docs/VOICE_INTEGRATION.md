@@ -116,3 +116,21 @@ and real devices still need deployment/device testing.
 Render's blueprint now targets main. The Docker image includes React's built
 assets and the server-only game engine. Docker execution remains unverified on
 this machine because its Docker daemon cannot start.
+
+# Speaking turns and optional AI coaching
+
+The voice game has six alternating 45-second turns (Alex first), then a 45-second signing window. A visible reminder appears with 10 seconds left. The browser disables the actual outgoing microphone track outside its turn, including preparation, pauses, and signing. The receiver suppresses off-turn audio; the HTTP PCM relay also rejects off-turn uploads on the server. Direct WebRTC muting relies on these application clients, not a server media mixer.
+
+AI coaching is disabled without `ELEVENLABS_API_KEY` plus the existing Gemini or OpenAI configuration. No keys are included. Both players opt in during preparation. Each browser records only its own permitted speaking turn, sends the bounded clip to the authenticated backend, and the backend calls ElevenLabs Scribe v2. Audio is kept only in memory for the request; provider retention policies apply. Text and private feedback persist in the existing room/result JSONB, with no new migration.
+
+After a completed round, the results screen requests private rubric feedback from the configured LLM. The model receives conversation transcripts and only the assessed player's brief. Every rubric category must cite a verified quote from that player's speech. Mission achievement stays deterministic: 60 points from the signed deal, plus up to 40 communication points. Missing speech, missing keys, and provider failures show unavailable feedback instead of a fabricated score. AI scores do not change the mission leaderboard.
+
+Authenticated, same-origin APIs:
+
+| Endpoint                           | Body                               | Behavior                                                                                         |
+| ---------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `POST /api/vc/coaching/consent`    | `{code, round, granted}`           | Consent before speaking starts; both seats must opt in.                                          |
+| `POST /api/vc/coaching/transcribe` | `{code, round, turn, mime, audio}` | Zero-based turn; base64 audio, max 1 MB decoded; only own ended turn, idempotent once committed. |
+| `POST /api/vc/coaching/evaluate`   | `{code, round}`                    | Completed round; waits for clips, verifies evidence, returns only caller's feedback.             |
+
+All three return the caller-filtered room view with `speakingTurn` and `coaching`. Limits bound upload size, rate, retries, and provider timeouts. Tests mock the providers; real paid provider calls require separately configured keys.

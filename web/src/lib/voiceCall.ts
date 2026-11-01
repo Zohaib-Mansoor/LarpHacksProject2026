@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatMessage, RoomView } from "./api";
+import { useTurnRecording } from './turnRecording';
 
 const BAR_COUNT = 20;
 const EMPTY_BARS = Array.from({ length: BAR_COUNT }, () => 14);
@@ -106,6 +107,11 @@ export function useVoiceCall({
   onSpokenLine,
   onRoomPush,
   transcribe = false,
+  speakingTurn,
+  serverOffset = 0,
+  paused = false,
+  coaching = false,
+  round = 1,
 }: {
   code: string;
   token: string | null;
@@ -116,6 +122,11 @@ export function useVoiceCall({
   onSpokenLine?: (text: string) => void;
   onRoomPush?: (next: RoomView) => void;
   transcribe?: boolean;
+  speakingTurn: RoomView['speakingTurn'];
+  serverOffset?: number;
+  paused?: boolean;
+  coaching?: boolean;
+  round?: number;
 }) {
   const [micJoined, setMicJoined] = useState(false);
   const [muted, setMuted] = useState(false);
@@ -137,7 +148,13 @@ export function useVoiceCall({
 
   const lineOpen = phase === "prep" || phase === "talk" || phase === "finalize";
   const talkActive = phase === "talk" || phase === "finalize";
-  const effectivelyMuted = muted || (pttMode && !pttHeld);
+  const [turnNow, setTurnNow] = useState(Date.now);
+  useEffect(() => { const timer = setInterval(() => setTurnNow(Date.now()), 100); return () => clearInterval(timer); }, []);
+  const turnValid = phase === 'talk' && !paused && !!speakingTurn && turnNow + serverOffset >= speakingTurn.startsAt && turnNow + serverOffset < speakingTurn.endsAt;
+  const canSpeak = turnValid && speakingTurn?.speaker === role;
+  const canHearPeer = turnValid && speakingTurn?.speaker !== role;
+  const turnRemaining = speakingTurn ? Math.max(0, Math.ceil((speakingTurn.endsAt - (turnNow + serverOffset)) / 1000)) : 0;
+  const effectivelyMuted = muted || (pttMode && !pttHeld) || !canSpeak;
 
   const streamRef = useRef<MediaStream | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -161,7 +178,7 @@ export function useVoiceCall({
   const effMutedRef = useRef(effectivelyMuted);
   effMutedRef.current = effectivelyMuted;
   const speakerMutedRef = useRef(speakerMuted);
-  speakerMutedRef.current = speakerMuted;
+  speakerMutedRef.current = speakerMuted || !canHearPeer;
   const rtcStateRef = useRef(rtcState);
   rtcStateRef.current = rtcState;
   const peerOnlineRef = useRef(peerOnline);
@@ -172,6 +189,15 @@ export function useVoiceCall({
   onSpokenRef.current = onSpokenLine;
   const onRoomPushRef = useRef(onRoomPush);
   onRoomPushRef.current = onRoomPush;
+  const recordingStatus = useTurnRecording({ stream: micJoined ? streamRef.current : null,
+    enabled: coaching && canSpeak, code, round, turn: speakingTurn?.index ?? null });
+
+  useEffect(() => {
+    const silence = speakerMuted || !canHearPeer;
+    if (remoteAudioRef.current) remoteAudioRef.current.muted = silence;
+    if (remoteGainRef.current) remoteGainRef.current.gain.value = silence ? 0 : 1;
+    if (!canHearPeer) { window.speechSynthesis?.cancel(); botSpeakingRef.current = false; }
+  }, [speakerMuted, canHearPeer]);
 
   const ensureAudioContext = useCallback(async () => {
     if (!audioCtxRef.current || audioCtxRef.current.state === "closed") {
@@ -831,7 +857,7 @@ export function useVoiceCall({
 
   // Speak Sparring Partner lines aloud via natural Web Speech Synthesis
   useEffect(() => {
-    if (!sparring || !talkActive || !role || speakerMuted) return;
+    if (!sparring || !talkActive || !role || speakerMuted || !canHearPeer) return;
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
 
     const partnerMsgs = messages.filter(
@@ -859,7 +885,7 @@ export function useVoiceCall({
       };
       window.speechSynthesis.speak(utter);
     } catch {}
-  }, [messages, sparring, talkActive, role, speakerMuted]);
+  }, [messages, sparring, talkActive, role, speakerMuted, canHearPeer]);
 
   const toggleMute = useCallback(() => {
     setMuted((m) => !m);
@@ -873,9 +899,9 @@ export function useVoiceCall({
   const toggleSpeaker = useCallback(() => {
     setSpeakerMuted((s) => {
       const next = !s;
-      if (remoteAudioRef.current) remoteAudioRef.current.muted = next;
+      if (remoteAudioRef.current) remoteAudioRef.current.muted = next || !canHearPeer;
       if (remoteGainRef.current)
-        remoteGainRef.current.gain.value = next ? 0 : 1;
+        remoteGainRef.current.gain.value = next || !canHearPeer ? 0 : 1;
       if (next) {
         try {
           window.speechSynthesis?.cancel();
@@ -884,7 +910,7 @@ export function useVoiceCall({
       }
       return next;
     });
-  }, []);
+  }, [canHearPeer]);
 
   useEffect(() => () => stopAll(), [stopAll]);
 
@@ -910,5 +936,8 @@ export function useVoiceCall({
     togglePttMode,
     toggleSpeaker,
     stopAll,
+    canSpeak,
+    turnRemaining,
+    recordingStatus,
   };
 }

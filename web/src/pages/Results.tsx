@@ -15,6 +15,7 @@ import {
   submitLeaderboardScore,
 } from '../lib/api';
 import { useToast } from '../providers/ToastProvider';
+import { VoiceFeedback } from '../components/VoiceFeedback';
 
 export default function Results() {
   const { code = '' } = useParams();
@@ -145,6 +146,7 @@ export default function Results() {
       <FlowStepperHeader step={3} badge={view.you.id === 'alex' ? 'AV' : 'MR'} closeTo="/play" />
 
       <div className="results-wrap">
+        <VoiceFeedback view={view} onUpdate={setView} />
         {/* Signature Dark Signed Receipt */}
         <section className="receipt receipt-panel" aria-labelledby="receipt-heading">
           <div className="receipt-head">

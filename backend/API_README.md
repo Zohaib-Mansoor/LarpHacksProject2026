@@ -373,3 +373,7 @@ creation, two distinct sessions, private briefs, typed chat, revision resets,
 two-party confirmation, results, reload persistence, and mobile layout.
 For real PostgreSQL concurrency tests, follow the fresh test-database instructions
 in [INTEGRATION.md](../docs/INTEGRATION.md).
+
+# Timed voice turns and coaching
+
+See [the voice integration API](../docs/VOICE_INTEGRATION.md#speaking-turns-and-optional-ai-coaching) for `/api/vc/coaching/consent`, `/api/vc/coaching/transcribe`, and `/api/vc/coaching/evaluate`. Voice calls alternate six 45-second speaking turns with a 10-second warning and automatic microphone muting. Coaching needs both players' opt-in plus server-side ElevenLabs and LLM keys; it remains disabled without them. Mission scoring works independently.

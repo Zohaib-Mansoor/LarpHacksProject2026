@@ -18,6 +18,7 @@ import { GameError, memberFor, snapshot } from './game.js';
 import { configuredAi } from './ai-provider.js';
 import { registerVoice } from './voice-routes.js';
 import type { AiProvider } from './ai.js';
+import { configuredVoiceCoach, type VoiceCoach } from './voice-coach.js';
 
 const Room = Type.Object({ roomId: Type.String({ format: 'uuid' }) });
 const Command = Type.Union([
@@ -72,6 +73,7 @@ export async function buildDemoApp(options: {
   config: Config;
   clock?: () => number;
   ai?: AiProvider;
+  voiceCoach?: VoiceCoach;
 }) {
   const { db, config } = options;
   const clock = options.clock ?? Date.now;
@@ -422,7 +424,13 @@ export async function buildDemoApp(options: {
       return reply.status(201).send({ saved: true });
     },
   );
-  await registerVoice(app, db, principal, clock);
+  await registerVoice(
+    app,
+    db,
+    principal,
+    clock,
+    options.voiceCoach ?? configuredVoiceCoach(config),
+  );
   // Exact static routes: missing /api paths can never fall through to HTML.
   const publicRoot = resolve(import.meta.dirname, '../../playcall/public');
   const webRoot = resolve(import.meta.dirname, '../../web/dist');

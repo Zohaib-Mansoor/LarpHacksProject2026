@@ -64,6 +64,17 @@ export interface RoundResult {
 }
 
 export interface RoomView {
+  speakingTurn: { index: number; total: number; speaker: 'alex' | 'morgan'; startsAt: number; endsAt: number; warningMs: number } | null;
+  coaching: {
+    configured: boolean; model: string | null; consent: boolean; allConsented: boolean;
+    pendingClips: number; failedClips: number;
+    transcript: { turn: number; speaker: 'alex' | 'morgan'; text: string }[];
+    status: 'idle' | 'processing' | 'complete' | 'failed';
+    feedback: null | {
+      objectivePoints: number; communicationPoints: number; overall: number; model: string;
+      assessment: { dimensions: { key: string; level: number; explanation: string; evidence: { segmentId: string; quote: string }[] }[] };
+    };
+  };
   code: string;
   mode: "text" | "voice";
   phase: "waiting" | "prep" | "talk" | "finalize" | "complete" | "incomplete";

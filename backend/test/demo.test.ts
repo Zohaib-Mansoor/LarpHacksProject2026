@@ -12,6 +12,8 @@ import type { Config } from '../src/config.js';
 import { builtinScenario, freezeScenario } from '../src/scenario.js';
 import type { AiProvider } from '../src/ai.js';
 import type { VoiceView } from '../src/voice-store.js';
+import type { VoiceCoach } from '../src/voice-coach.js';
+import { rubric } from '../src/rubric.js';
 
 const origin = 'http://127.0.0.1:4173';
 const config: Config = {
@@ -376,6 +378,119 @@ describe('one-origin database demo', () => {
 });
 
 describe('React realtime voice + persistent backend', () => {
+  it('enforces turn ownership and has no coaching without configured keys', async () => {
+    const { a, b, code } = await pair();
+    await vc(a, code, { type: 'ready' });
+    const start = (await vc(b, code, { type: 'ready' })).json();
+    expect(start.speakingTurn).toMatchObject({
+      index: 0,
+      speaker: 'alex',
+      warningMs: 10000,
+    });
+    expect(start.coaching.configured).toBe(false);
+    expect(
+      (
+        await post('/api/vc/call-audio', b, {
+          code,
+          rate: 16000,
+          pcm: Buffer.alloc(300).toString('base64'),
+        })
+      ).statusCode,
+    ).toBe(409);
+    expect(
+      (await post('/api/vc/coaching/evaluate', a, { code, round: 1 }))
+        .statusCode,
+    ).toBe(503);
+  });
+  it('transcribes consented turns once and stores only private, quote-verified AI feedback', async () => {
+    const { a, b, code } = await pair();
+    let speechCalls = 0,
+      gradeCalls = 0;
+    const coach: VoiceCoach = {
+      model: 'test-coach',
+      transcribe: async () => {
+        speechCalls++;
+        return 'Could we agree on staged delivery to meet your deadline?';
+      },
+      assess: async (input) => {
+        gradeCalls++;
+        expect(input.yourBrief.objectives).toContain(
+          'Agree a price of at least $5.50M',
+        );
+        expect(JSON.stringify(input)).not.toContain(
+          'Agree a price of at most $5.00M',
+        );
+        return {
+          dimensions: rubric.dimensions.map((d) => ({
+            key: d.key,
+            level: 3,
+            explanation: 'The player asked a clear, constructive question.',
+            evidence: [{ segmentId: 'turn-0', quote: 'staged delivery' }],
+          })),
+        };
+      },
+    };
+    const server = await buildDemoApp({
+      db,
+      config,
+      clock: () => now,
+      voiceCoach: coach,
+    });
+    const request = (path: string, headers: Headers, payload: object) =>
+      server.app.inject({
+        method: 'POST',
+        url: `/api/vc/coaching/${path}`,
+        headers,
+        payload,
+      });
+    try {
+      await request('consent', a, { code, round: 1, granted: true });
+      await request('consent', b, { code, round: 1, granted: true });
+      await vc(a, code, { type: 'ready' });
+      await vc(b, code, { type: 'ready' });
+      const clip = {
+        code,
+        round: 1,
+        turn: 0,
+        mime: 'audio/webm',
+        audio: Buffer.alloc(300).toString('base64'),
+      };
+      expect((await request('transcribe', b, clip)).statusCode).toBe(403);
+      expect((await request('transcribe', a, clip)).statusCode).toBe(409);
+      // Early agreement ends the first turn and permits its final partial clip.
+      await vc(a, code, {
+        type: 'propose',
+        deal: { price: 550, package: 'phased' },
+      });
+      await vc(a, code, { type: 'confirm', revision: 1 });
+      await vc(b, code, { type: 'confirm', revision: 1 });
+      const uploaded = await request('transcribe', a, clip);
+      expect(uploaded.statusCode, uploaded.body).toBe(200);
+      expect((await request('transcribe', a, clip)).statusCode).toBe(200);
+      expect(speechCalls).toBe(1);
+      now += 6000;
+      const graded = await request('evaluate', a, { code, round: 1 });
+      expect(graded.statusCode, graded.body).toBe(200);
+      expect(graded.json().coaching.feedback.overall).toBe(90);
+      await request('evaluate', a, { code, round: 1 });
+      expect(gradeCalls).toBe(1);
+      const other = await server.app.inject({
+        url: `/api/vc/room?code=${code}`,
+        headers: b,
+      });
+      expect(other.json().coaching.feedback).toBeNull();
+      const history = await server.app.inject({
+        url: '/api/vc/me/history',
+        headers: a,
+      });
+      expect(
+        history.json().rounds.find((r: VoiceView) => r.code === code).coaching
+          .feedback.overall,
+      ).toBe(90);
+    } finally {
+      await server.app.close();
+    }
+  });
   const vc = (
     headers: Headers,
     code: string,

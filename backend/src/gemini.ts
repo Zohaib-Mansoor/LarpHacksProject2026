@@ -3,11 +3,11 @@ import type { AiProvider } from './ai.js';
 import { Assessment, rubric } from './rubric.js';
 import { ScenarioDraft, freezeScenario, privateBrief } from './scenario.js';
 
-export function createGeminiAi(
+export function createGeminiJson(
   apiKey: string,
   model: string,
   transport: typeof fetch = fetch,
-): AiProvider {
+) {
   if (!/^[a-zA-Z0-9_.-]+$/.test(model))
     throw new Error('Invalid Gemini model name.');
   async function generate<T extends z.ZodType>(
@@ -60,6 +60,15 @@ export function createGeminiAi(
     if (!text) throw new Error('Gemini returned no structured result.');
     return schema.parse(JSON.parse(text));
   }
+  return generate;
+}
+
+export function createGeminiAi(
+  apiKey: string,
+  model: string,
+  transport: typeof fetch = fetch,
+): AiProvider {
+  const generate = createGeminiJson(apiKey, model, transport);
   return {
     model: `gemini/${model}`,
     async generate() {

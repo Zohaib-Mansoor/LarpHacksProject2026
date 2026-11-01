@@ -41,9 +41,18 @@ for (const page of [one, two]) {
   });
 }
 try {
-  await expect.poll(async () => {
-    try { return (await a.request.get(`${origin}/ready`)).status(); } catch { return 0; }
-  }, { timeout: 10000 }).toBe(200);
+  await expect
+    .poll(
+      async () => {
+        try {
+          return (await a.request.get(`${origin}/ready`)).status();
+        } catch {
+          return 0;
+        }
+      },
+      { timeout: 10000 },
+    )
+    .toBe(200);
   await one.goto(`${origin}/setup?mode=create`);
   await one.getByRole('checkbox').check();
   await one
@@ -127,6 +136,34 @@ try {
   await one.getByRole('button', { name: 'Unmute (M)', exact: true }).click();
   console.log(
     'PASS: mute disables the real sender track and unmute restores it.',
+  );
+  await expect(two.getByTestId('speaking-turn')).toContainText('Alex');
+  await expect(one.getByTestId('speaking-turn')).toContainText('Wrap up', {
+    timeout: 45000,
+  });
+  await expect(two.getByTestId('speaking-turn')).toContainText('Your turn', {
+    timeout: 15000,
+  });
+  for (const [page, enabled] of [
+    [one, false],
+    [two, true],
+  ]) {
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() =>
+            window.__voiceTestPeers
+              .filter((pc) => pc.connectionState === 'connected')
+              .flatMap((pc) => pc.getSenders())
+              .filter((s) => s.track?.kind === 'audio')
+              .every((s) => s.track.enabled),
+          ),
+        { timeout: 5000 },
+      )
+      .toBe(enabled);
+  }
+  console.log(
+    'PASS: 10-second warning, 45-second turn switch, real microphone auto-mute and next speaker enabled.',
   );
 
   await one.getByRole('button', { name: 'Propose terms', exact: true }).click();

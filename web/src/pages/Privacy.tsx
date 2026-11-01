@@ -42,7 +42,7 @@ export default function Privacy() {
       <p>
         Multiplayer rounds stream peer-to-peer WebRTC microphone audio directly between the two callers
         after transient signaling. If a direct connection fails, audio can be relayed live through the app server without being saved. Solo sparring uses a labelled scripted partner and browser speech synthesis. Optional CC uses your browser&apos;s built-in speech
-        recognition, which may send audio to the browser vendor for processing. CC is off by default. PlayCall never records or stores raw audio files, and camera
+        recognition, which may send audio to the browser vendor for processing. CC is off by default. When both players opt into AI coaching, each browser records its own timed speaking turns in memory and uploads them to the backend, which sends them to ElevenLabs for transcription. Conversation transcripts and the assessed player’s private brief go to the configured LLM for rubric feedback. Transcripts and feedback are stored with the round; PlayCall does not retain audio files. Provider retention policies apply. Coaching is disabled until API keys are configured. Camera
         access is blocked at the HTTP policy level (<code>Permissions-Policy: camera=()</code>).
       </p>
 
