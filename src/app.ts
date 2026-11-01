@@ -1,3 +1,6 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+import { extname } from "node:path";
 import Fastify from "fastify";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
@@ -38,7 +41,26 @@ export function buildApp(db: typeof database, origin: string, secret: string) {
     const code = error instanceof ApiError ? error.code : status === 400 ? "INVALID_REQUEST" : "INTERNAL_ERROR";
     return reply.code(status).send({ error: { code, message: status === 500 ? "Internal server error." : error.message, requestId: request.id } });
   });
-  app.setNotFoundHandler((request, reply) => reply.code(404).send({ error: { code: "NOT_FOUND", message: "Route not found.", requestId: request.id } }));
+  const webDist = join(process.cwd(), "web", "dist");
+  const mime: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".woff2": "font/woff2" };
+  app.setNotFoundHandler(async (request, reply) => {
+    if (request.url.startsWith("/api/")) {
+      return reply.code(404).send({ error: { code: "NOT_FOUND", message: "Route not found.", requestId: request.id } });
+    }
+    try {
+      const rel = request.url.split("?")[0] ?? "/";
+      let file = join(webDist, rel === "/" ? "index.html" : rel.replace(/^\/+/, ""));
+      if (!file.startsWith(webDist)) throw new Error("bad path");
+      let data = await readFile(file).catch(() => null);
+      if (!data && !extname(rel)) { file = join(webDist, "index.html"); data = await readFile(file).catch(() => null); }
+      if (!data) throw new Error("missing");
+      reply.header("content-type", mime[extname(file)] ?? "application/octet-stream");
+      if (file.endsWith(".html")) reply.header("cache-control", "no-store");
+      return reply.send(data);
+    } catch {
+      return reply.code(503).send("PlayCall web build not found. Run: npm run web:build");
+    }
+  });
   app.route({ method: ["GET", "POST"], url: "/api/auth/*", async handler(request, reply) {
     const response = await auth.handler(new Request(new URL(request.url, origin), {
       method: request.method, headers: fromNodeHeaders(request.headers),
