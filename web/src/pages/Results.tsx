@@ -145,7 +145,7 @@ export default function Results() {
 
   return (
     <div className="flow-page" ref={root}>
-      <FlowStepperHeader step={3} badge={view.you.id === 'alex' ? 'AV' : 'MR'} closeTo="/play" />
+      <FlowStepperHeader step={3} badge={view.you.name.slice(0,2).toUpperCase()} closeTo="/play" />
 
       <div className="results-wrap">
         <VoiceFeedback view={view} onUpdate={setView} />
@@ -172,11 +172,11 @@ export default function Results() {
 
           <div className="receipt-meta-grid">
             <div>
-              <span className="meta-lbl">You (Blue)</span>
+              <span className="meta-lbl">You</span>
               <strong>{view.you.name} · {myScore} pts</strong>
             </div>
             <div>
-              <span className="meta-lbl">Partner (Orange)</span>
+              <span className="meta-lbl">Partner</span>
               <strong>{view.peer?.name || 'Partner'} · {view.result ? `${peerScore} pts` : '—'}</strong>
             </div>
             <div>

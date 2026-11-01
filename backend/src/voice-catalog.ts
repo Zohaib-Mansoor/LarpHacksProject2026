@@ -29,7 +29,10 @@ export const voiceCatalog = {
   scenario: {
     id: scenario.scenarioVersion,
     title: 'The Satellite Deal',
-    roles: ['alex', 'morgan'].map(scenario.publicCharacter),
+    roles: ['alex', 'morgan'].map((id) => {
+      const character = scenario.publicCharacter(id);
+      return { ...character, name: character.role, short: character.role };
+    }),
   },
   rules: {
     prices: [450, 475, 500, 525, 550, 575, 600],

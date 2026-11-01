@@ -13,12 +13,12 @@ gsap.registerPlugin(ScrollTrigger);
 /* ------------------------------------------------------------------ */
 
 const STEPS = [
-  { n: '01', title: 'Dial a stranger', body: 'Two anonymous callers paired instantly. Server-assigned aliases — no profiles, no photos.', tone: 'sky', icon: 'match' },
+  { n: '01', title: 'Dial a stranger', body: 'Invite another player. Your account usernames identify each participant.', tone: 'sky', icon: 'match' },
   { n: '02', title: 'Take your brief', body: 'A secret identity and three objectives. Your brief stays private — the other caller never sees it.', tone: 'navy', icon: 'brief' },
   { n: '03', title: 'Talk & trade live', body: 'Alternating timed speaking turns with optional captions. Pitch, counter, revise — zero cameras.', tone: 'orange', icon: 'call' },
   { n: '04', title: 'Sign the receipt', body: 'Both confirm the same revision on the call and the deal condenses into a signed receipt.', tone: 'paper', icon: 'receipt' },
 ] as const;
-const MARQUEE = ['Live voice call', 'Zero cameras', 'Timed turns', 'Secret roles', 'Close the deal', 'No names', 'One stranger'];
+const MARQUEE = ['Live voice call', 'Zero cameras', 'Timed turns', 'Secret roles', 'Close the deal', 'Private objectives', 'One stranger'];
 
 
 
@@ -93,10 +93,10 @@ function DemoRound() {
         {/* Live two-caller voice stage strip */}
         <div className="demo-callers" aria-hidden="true">
           <div className="demo-caller is-you">
-            <span className="demo-orb is-you">AV</span>
+            <span className="demo-orb is-you">You</span>
             <div className="demo-caller-meta">
-              <strong>You · {scenario.roles[0].name}</strong>
-              <small>Mic live · Blue channel</small>
+              <strong>You</strong>
+              <small>Your microphone</small>
             </div>
             <div className="demo-wave is-you">
               <i /><i /><i /><i /><i /><i />
@@ -104,10 +104,10 @@ function DemoRound() {
           </div>
 
           <div className="demo-caller is-them">
-            <span className="demo-orb is-them">MR</span>
+            <span className="demo-orb is-them">Peer</span>
             <div className="demo-caller-meta">
-              <strong>{scenario.roles[1].name} · Stranger</strong>
-              <small>Speaking · Orange channel</small>
+              <strong>Your partner</strong>
+              <small>Partner microphone</small>
             </div>
             <div className="demo-wave is-them">
               <i /><i /><i /><i /><i /><i />
@@ -117,17 +117,17 @@ function DemoRound() {
 
         <div className="demo-body">
           <div className="demo-feed">
-            <div className="msg them" data-step><span className="who">🔊 {scenario.roles[1].name} · Live audio</span>“Our investor showcase is at month 6 — $5.00M is our target cap.”</div>
-            <div className="msg you" data-step><span className="who">🎙️ You · {scenario.roles[0].name}</span>“How about a live demo at month 6 and the full satellite at month 8?”</div>
-            <div className="msg them" data-step><span className="who">🔊 {scenario.roles[1].name} · Live audio</span>“Staged delivery works! Meet at $5.25M and I’ll sign right now.”</div>
+            <div className="msg them" data-step><span className="who">🔊 Partner · Example dialogue</span>“Our investor showcase is at month 6 — $5.00M is our target cap.”</div>
+            <div className="msg you" data-step><span className="who">🎙️ You</span>“How about a live demo at month 6 and the full satellite at month 8?”</div>
+            <div className="msg them" data-step><span className="who">🔊 Partner · Example dialogue</span>“Staged delivery works! Meet at $5.25M and I’ll sign right now.”</div>
             <div className="proposal" data-step>
               <div className="proposal-head mono">SHARED PROPOSAL · REV 2</div>
               <div className="proposal-terms">
                 <span>$5.25M</span><span>Demo @ M6</span><span>Full @ M8</span>
               </div>
               <div className="proposal-acc">
-                <span className="acc acc-you" data-acc>✓ You (Alex)</span>
-                <span className="acc acc-them" data-acc>✓ Morgan</span>
+                <span className="acc acc-you" data-acc>✓ You</span>
+                <span className="acc acc-them" data-acc>✓ Partner</span>
               </div>
             </div>
             <div className="typing" aria-hidden="true"><i /><i /><i /></div>
@@ -135,7 +135,7 @@ function DemoRound() {
           </div>
 
           <aside className="dossier">
-            <div className="dossier-eyebrow mono">PRIVATE BRIEF — ALEX VEGA</div>
+            <div className="dossier-eyebrow mono">YOUR PRIVATE BRIEF</div>
             <div className="dossier-role">The Engineer</div>
             <ul className="objectives">
               <li data-obj><span className="tick" />Close a confirmed deal (+{rules.objectivePoints})</li>

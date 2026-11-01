@@ -77,7 +77,7 @@ export default function Account() {
               id="acc-callsign"
               value={callsign}
               onChange={(e) => setCallsign(e.target.value.slice(0, 24))}
-              placeholder="BLUE-FALCON-01"
+              placeholder="Your username"
             />
           </div>
 

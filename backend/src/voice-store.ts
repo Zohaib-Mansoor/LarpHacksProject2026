@@ -1,8 +1,8 @@
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { and, asc, desc, eq, gt, isNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray, isNull, sql } from 'drizzle-orm';
 import type { Database } from './db/client.js';
-import { voiceRooms, voiceResults } from './db/schema.js';
+import { voiceRooms, voiceResults, user, userSettings } from './db/schema.js';
 import { GameError } from './game.js';
 import { speakingTurn, TALK_MS, TURN_MS, TURN_COUNT } from './voice-turns.js';
 import {
@@ -24,6 +24,7 @@ type Player = {
   signals: unknown[];
 };
 type State = {
+  displayNames?: Partial<Record<Role, string>>;
   talkStartedAt?: number;
   finishedAt?: number;
   pauseStart?: number | null;
@@ -149,8 +150,16 @@ export class VoiceStore {
   private view(engine: Engine, row: Row, seat: number) {
     const state = row.state as State;
     const view = engine.view(state, state.players[seat]!);
+    const peer = view.peer as { id: Role; [key: string]: unknown } | null;
+    const ownName = state.displayNames?.[view.you.id] ?? 'You';
+    const peerName = peer
+      ? (state.displayNames?.[peer.id] ??
+        (row.sparring ? 'Practice partner' : 'Partner'))
+      : null;
     return {
       ...view,
+      you: { ...view.you, name: ownName, short: ownName },
+      peer: peer ? { ...peer, name: peerName, short: peerName } : null,
       speakingTurn: speakingTurn(state, this.clock()),
       coaching: {
         configured: !!this.coachProvider,
@@ -228,6 +237,33 @@ export class VoiceStore {
           throw new GameError('ROOM_EXPIRED', 'Room expired.', 410);
         const engine = this.engine(row);
         const state = row.state as State;
+        const accounts = await tx
+          .select({
+            id: user.id,
+            name: user.name,
+            displayName: userSettings.displayName,
+          })
+          .from(user)
+          .leftJoin(userSettings, eq(userSettings.userId, user.id))
+          .where(
+            inArray(
+              user.id,
+              [row.playerOneId, row.playerTwoId].filter(
+                (id): id is string => !!id,
+              ),
+            ),
+          );
+        state.displayNames = {};
+        for (const [index, id] of [
+          row.playerOneId,
+          row.playerTwoId,
+        ].entries()) {
+          const account = accounts.find((a) => a.id === id);
+          const role = state.players[index]?.role;
+          if (role && account)
+            state.displayNames[role] =
+              account.displayName?.trim() || account.name;
+        }
         if (row.sparring && state.players[1])
           state.players[1].lastSeen = this.clock();
         engine.auth(row.code, state.players[seat]!.token);

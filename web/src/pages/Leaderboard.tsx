@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AppShell } from '../components/AppShell';
-import { fetchLeaderboard, getProfile, LeaderboardEntry, saveProfile } from '../lib/api';
+import { fetchLeaderboard, getProfile, LeaderboardEntry, persistProfile } from '../lib/api';
 
 export default function Leaderboard() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
@@ -15,16 +15,13 @@ export default function Leaderboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  const toggleOptIn = () => {
-    const next = saveProfile({ leaderboardOptIn: !profile.leaderboardOptIn });
-    setProfile(next);
-  };
+  const toggleOptIn = async () => { try { const next = await persistProfile({ leaderboardOptIn: !profile.leaderboardOptIn }); setProfile(next); } catch { window.alert('Could not save your leaderboard preference. Please retry.'); } };
 
   return (
     <AppShell>
       <div className="hub">
         <header className="hub-header">
-          <div className="hub-balance-label">Opt-in mission standings · Live server memory</div>
+          <div className="hub-balance-label">Opt-in mission standings · Saved in PostgreSQL</div>
           <div className="hub-balance-row">
             <h1 className="hub-balance">Standings</h1>
           </div>
@@ -73,7 +70,7 @@ export default function Leaderboard() {
                     <td><strong>{e.callsign}</strong></td>
                     <td className="tnum">{e.deals}</td>
                     <td className="tnum">{e.rounds}</td>
-                    <td className="tnum">{e.best}/60</td>
+                    <td className="tnum">{e.best}</td>
                     <td className="tnum" style={{ textAlign: 'right', fontWeight: 800, color: 'var(--self)' }}>
                       {e.points} PTS
                     </td>

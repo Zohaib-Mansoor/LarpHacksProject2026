@@ -229,7 +229,7 @@ export default function Room() {
     );
   }
 
-  const badge = view.you.id === 'alex' ? 'AV' : 'MR';
+  const badge = view.you.name.slice(0,2).toUpperCase();
   const stepIndex: 0 | 1 | 2 | 3 = view.phase === 'waiting' ? 0 : view.phase === 'prep' ? 1 : 2;
   const inviteUrl = `${window.location.origin}/room/${view.code}`;
   const activePkg = view.packages.find(p => p.id === view.deal?.package);
@@ -431,10 +431,10 @@ export default function Room() {
 
           {/* -------- FULL-STAGE DUAL CALLER VOICE CARDS -------- */}
           <section className="call-stage-tiles is-immersive room-pop" aria-label="Active voice callers">
-            {/* YOU · BLUE VOICE LINE */}
+            {/* YOUR MICROPHONE LINE */}
             <article className={`caller-tile is-you${voice.youSpeaking ? ' is-speaking' : ''}`}>
               <div className="caller-tile-top">
-                <span className="caller-chan-pill is-you">YOU · BLUE VOICE</span>
+                <span className="caller-chan-pill is-you">YOUR MICROPHONE</span>
                 <span className={`caller-mic-state${voice.micJoined && !voice.effectivelyMuted ? ' is-live' : ''}`}>
                   {!voice.micJoined
                     ? 'Mic disconnected'
@@ -454,7 +454,7 @@ export default function Room() {
 
               <div className="caller-hero-visual">
                 <div className={`caller-orb is-lg is-you${voice.youSpeaking ? ' is-pulsing' : ''}`}>
-                  <span>{view.you.id === 'alex' ? 'AV' : 'MR'}</span>
+                  <span>{view.you.name.slice(0,2).toUpperCase()}</span>
                 </div>
                 <div className="caller-identity is-centered">
                   <strong>{view.you.name}</strong>
@@ -482,10 +482,10 @@ export default function Room() {
               ) : null}
             </article>
 
-            {/* STRANGER · ORANGE VOICE LINE */}
+            {/* PARTNER MICROPHONE LINE */}
             <article className={`caller-tile is-them${voice.partnerSpeaking ? ' is-speaking' : ''}`}>
               <div className="caller-tile-top">
-                <span className="caller-chan-pill is-them">STRANGER · ORANGE VOICE</span>
+                <span className="caller-chan-pill is-them">PARTNER MICROPHONE</span>
                 <span className={`caller-mic-state is-them${voice.partnerSpeaking ? ' is-live' : ''}`}>
                   {voice.speakerMuted
                     ? 'Deafened (D)'
@@ -505,7 +505,7 @@ export default function Room() {
 
               <div className="caller-hero-visual">
                 <div className={`caller-orb is-lg is-them${voice.partnerSpeaking ? ' is-pulsing' : ''}`}>
-                  <span>{view.peer?.id === 'alex' ? 'AV' : 'MR'}</span>
+                  <span>{(view.peer?.name || 'Partner').slice(0,2).toUpperCase()}</span>
                 </div>
                 <div className="caller-identity is-centered">
                   <strong>{view.peer?.name || 'Anonymous caller'}</strong>

@@ -30,7 +30,7 @@ export default function Demo() {
         <aside className="demo-tag-banner">
           <div>
             <span className="demo-pill-badge">CALL SANDBOX</span>
-            <span>Sample call transcript &amp; live deal arithmetic — test any price ({formatMoney(rules.prices[0])}–{formatMoney(rules.prices.at(-1)!)}) before hopping on a real voice call.</span>
+            <span>Rules walkthrough &amp; server-calculated deal arithmetic — test any price ({formatMoney(rules.prices[0])}–{formatMoney(rules.prices.at(-1)!)}) before hopping on a real voice call.</span>
           </div>
           <button
             type="button"
@@ -47,7 +47,7 @@ export default function Demo() {
         <div className="stage-grid">
           <aside className="stage-side">
             <div className="party-card is-you">
-              <div className="party-tag">SAMPLE PLAYER A · BLUE</div>
+              <div className="party-tag">FIRST ROLE</div>
               <strong>{scenario.roles[0].name} · {scenario.roles[0].role}</strong>
               <ul className="mini-goal-list">
                 {['Agreement', 'Price objective', 'Schedule objective'].map((g, i) => (
@@ -60,7 +60,7 @@ export default function Demo() {
             </div>
 
             <div className="party-card is-them">
-              <div className="party-tag">SAMPLE PLAYER B · ORANGE</div>
+              <div className="party-tag">SECOND ROLE</div>
               <strong>{scenario.roles[1].name} · {scenario.roles[1].role}</strong>
               <ul className="mini-goal-list">
                 {['Agreement', 'Price objective', 'Schedule objective'].map((g, i) => (
@@ -86,7 +86,7 @@ export default function Demo() {
               ))}
               {lineCount < DEMO_LINES.length ? (
                 <button type="button" className="wise-pill wise-pill-soft" style={{ alignSelf: 'flex-start' }} onClick={() => setLineCount(c => c + 1)}>
-                  Reveal next sample line ({lineCount}/{DEMO_LINES.length}) →
+                  Reveal next walkthrough line ({lineCount}/{DEMO_LINES.length}) →
                 </button>
               ) : null}
             </div>

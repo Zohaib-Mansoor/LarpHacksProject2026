@@ -100,7 +100,7 @@ export default function Setup() {
     }
   }
 
-  const badge = role === 'alex' ? 'AV' : role === 'morgan' ? 'MR' : (callsign.slice(0, 2).toUpperCase() || 'PC');
+  const badge = callsign.slice(0,2).toUpperCase() || 'PC';
 
   return (
     <div className="flow-page" ref={root}>
@@ -181,7 +181,7 @@ export default function Setup() {
               <strong>Today — in seconds</strong>
               <small>{rules.briefSeconds}s private brief, then {rules.turnCount} × {rules.turnSeconds}s speaking turns</small>
             </div>
-            <Link to="/demo" className="wise-change-pill">Sample</Link>
+            <Link to="/demo" className="wise-change-pill">Explore rules</Link>
           </div>
 
           <div className="flow-summary-row flow-row-anim">
@@ -221,7 +221,7 @@ export default function Setup() {
             id="callsign-input"
             value={callsign}
             onChange={e => setCallsign(e.target.value.slice(0, 24))}
-            placeholder="BLUE-FALCON-01"
+            placeholder="Your username"
             autoComplete="off"
           />
         </div>

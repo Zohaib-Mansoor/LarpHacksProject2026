@@ -129,7 +129,7 @@ export default function Play() {
 
               <div className="bento-currencies">
                 <button type="button" className="currency-row" onClick={() => void quickSpar('alex')} disabled={!!launching}>
-                  <span className="channel-dot is-you">AV</span>
+                  <span className="channel-dot is-you">1</span>
                   <span className="currency-label">
                     <strong>{scenario.roles[0].name} · {scenario.roles[0].role}</strong>
                     <small>Private goals revealed in your brief</small>
@@ -140,7 +140,7 @@ export default function Play() {
                 </button>
 
                 <button type="button" className="currency-row" onClick={() => void quickSpar('morgan')} disabled={!!launching}>
-                  <span className="channel-dot is-them">MR</span>
+                  <span className="channel-dot is-them">2</span>
                   <span className="currency-label">
                     <strong>{scenario.roles[1].name} · {scenario.roles[1].role}</strong>
                     <small>Private goals revealed in your brief</small>
@@ -154,7 +154,7 @@ export default function Play() {
                   <span className="channel-dot is-ink">01</span>
                   <span className="currency-label">
                     <strong>Interactive walkthrough</strong>
-                    <small>Sample dialogue &amp; deal sandbox</small>
+                    <small>Interactive rules walkthrough</small>
                   </span>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                     <path d="m9 6 6 6-6 6" />
@@ -198,7 +198,7 @@ export default function Play() {
               <span className="art-card-orange" />
             </div>
             <div className="hub-banner-copy">
-              <p>Live two-channel voice calls are active — blue waveforms track your mic, warm orange tracks your caller, and zero cameras ever turn on.</p>
+              <p>Your waveform tracks your microphone, and the other waveform tracks your partner. Cameras stay off.</p>
               <Link to="/setup">Open the 4-step call launcher</Link>
             </div>
             <button
@@ -229,7 +229,7 @@ export default function Play() {
               history.slice(0, 6).map(item => (
                 <Link key={item.id} to={`/results/${item.code}`} className="hub-row">
                   <span className={`row-badge ${item.role === 'alex' ? 'is-you' : 'is-them'}`}>
-                    {item.role === 'alex' ? 'AV' : 'MR'}
+                    {item.roleName.slice(0,2).toUpperCase()}
                   </span>
                   <span className="row-main">
                     <strong>{item.roleName}</strong>
@@ -271,11 +271,11 @@ export default function Play() {
                   <span className="row-badge is-ink">✦</span>
                   <span className="row-main">
                     <strong>Interactive Demo Walkthrough</strong>
-                    <small>Step through sample dialogue and test every price &amp; delivery combination</small>
+                    <small>Explore the rules and test price and delivery combinations</small>
                   </span>
                   <span className="row-amount tnum">
                     <strong>90s tour</strong>
-                    <small>Sample</small>
+                    <small>Rules</small>
                   </span>
                 </Link>
               </>
