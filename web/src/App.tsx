@@ -18,6 +18,7 @@ import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
 import NotFound from './pages/NotFound';
 import './styles/app.css';
+import { GameConfigProvider } from './providers/GameConfigProvider';
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -46,6 +47,7 @@ export default function App() {
   return (
     <ThemeProvider>
       <SessionProvider>
+        <GameConfigProvider>
         <ToastProvider>
           <BrowserRouter>
             <SmoothScroll />
@@ -54,6 +56,7 @@ export default function App() {
             <AnimatedRoutes />
           </BrowserRouter>
         </ToastProvider>
+        </GameConfigProvider>
       </SessionProvider>
     </ThemeProvider>
   );

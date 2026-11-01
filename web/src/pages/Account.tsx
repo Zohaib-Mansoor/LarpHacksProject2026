@@ -52,7 +52,7 @@ export default function Account() {
           <h1 className="hub-balance">Caller Profile</h1>
           <p style={{ color: "var(--muted)", marginTop: 6 }}>
             In rooms, partners only ever see your server-assigned scenario alias
-            (Alex Vega or Morgan Reed) — never this callsign.
+            — never this callsign.
           </p>
         </header>
         {user?.isGuest ? (

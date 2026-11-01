@@ -1,15 +1,17 @@
-import { useState } from 'react';
+import { useGameConfig } from '../providers/GameConfigProvider';
+import { useEffect, useState } from 'react';
 import { Sheet } from '../primitives/Sheet';
 import { DeliveryPackage, formatMoney } from '../lib/api';
 
-const PRICES = [450, 475, 500, 525, 550, 575, 600];
+
 
 export function OfferSheet({
   open,
   onClose,
   packages,
-  initialPrice = 525,
-  initialPackage = 'phased',
+  initialPrice,
+  initialPackage,
+  roomCode,
   roleId,
   onSubmit,
   busy = false,
@@ -17,14 +19,18 @@ export function OfferSheet({
   open: boolean;
   onClose: () => void;
   packages: DeliveryPackage[];
+  roomCode?: string;
   initialPrice?: number;
   initialPackage?: 'phased' | 'full-6' | 'full-8';
   roleId: 'alex' | 'morgan';
   onSubmit: (deal: { price: number; package: 'phased' | 'full-6' | 'full-8' }) => void;
   busy?: boolean;
 }) {
-  const [price, setPrice] = useState<number>(PRICES.includes(initialPrice) ? initialPrice : 525);
-  const [pkgId, setPkgId] = useState<'phased' | 'full-6' | 'full-8'>(initialPackage);
+  const { rules } = useGameConfig();
+  const PRICES = rules.prices;
+  const [preview, setPreview] = useState<number[] | null>(null);
+  const [price, setPrice] = useState<number>(initialPrice !== undefined && PRICES.includes(initialPrice) ? initialPrice : rules.defaultPrice);
+  const [pkgId, setPkgId] = useState<'phased' | 'full-6' | 'full-8'>(initialPackage ?? rules.defaultPackage);
 
   const pkg = packages.find(p => p.id === pkgId) || packages[0];
   const idx = PRICES.indexOf(price);
@@ -35,9 +41,13 @@ export function OfferSheet({
   };
 
   // Private objective preview for the current player only
-  const priceMet = roleId === 'alex' ? price >= 550 : price <= 500;
-  const schedMet = roleId === 'alex' ? pkg.full === 8 : pkg.first <= 6;
-  const goalsCount = 1 + (priceMet ? 1 : 0) + (schedMet ? 1 : 0);
+  useEffect(() => {
+    if (!open) return;
+    const controller = new AbortController();
+    setPreview(null);
+    const timer = setTimeout(() => void fetch('/api/vc/preview', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({code: roomCode, confirmed: true, deal: {price, package: pkgId}}), signal: controller.signal}).then(async r => {if (!r.ok) throw Error(); const body = await r.json(); setPreview(body.yours ?? body.scores[roleId]);}).catch(() => {}), 150);
+    return () => {clearTimeout(timer); controller.abort();};
+  }, [open, price, pkgId, roomCode, roleId]);
 
   return (
     <Sheet open={open} onClose={onClose} title="Structure shared proposal">
@@ -61,7 +71,7 @@ export function OfferSheet({
               className="step-btn"
               onClick={() => idx > 0 && setPrice(PRICES[idx - 1])}
               disabled={idx <= 0}
-              aria-label="Decrease price by $0.25M"
+              aria-label="Decrease contract price"
             >
               −
             </button>
@@ -71,7 +81,7 @@ export function OfferSheet({
               className="step-btn"
               onClick={() => idx < PRICES.length - 1 && setPrice(PRICES[idx + 1])}
               disabled={idx >= PRICES.length - 1}
-              aria-label="Increase price by $0.25M"
+              aria-label="Increase contract price"
             >
               +
             </button>
@@ -108,9 +118,9 @@ export function OfferSheet({
             <span className="summary-circle is-orange" aria-hidden="true">🎯</span>
             <div className="summary-text">
               <span className="summary-label">Private brief alignment (eyes only)</span>
-              <strong>{goalsCount} of 3 mission goals satisfied ({goalsCount * 20} pts)</strong>
+              <strong>{preview ? `${preview.filter(p => p > 0).length} mission goals · ${preview.reduce((sum, p) => sum + p, 0)} points if signed` : 'Checking with server…'}</strong>
               <small>
-                Deal (+20) · Price {priceMet ? '✓ (+20)' : '✗ (0)'} · Schedule {schedMet ? '✓ (+20)' : '✗ (0)'}
+                Final points require both players to sign the same revision.
               </small>
             </div>
           </div>

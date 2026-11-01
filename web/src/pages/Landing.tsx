@@ -1,3 +1,5 @@
+import { useGameConfig } from '../providers/GameConfigProvider';
+import { formatMoney } from '../lib/api';
 import { Fragment, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { gsap } from 'gsap';
@@ -13,20 +15,12 @@ gsap.registerPlugin(ScrollTrigger);
 const STEPS = [
   { n: '01', title: 'Dial a stranger', body: 'Two anonymous callers paired instantly. Server-assigned aliases — no profiles, no photos.', tone: 'sky', icon: 'match' },
   { n: '02', title: 'Take your brief', body: 'A secret identity and three objectives. Your brief stays private — the other caller never sees it.', tone: 'navy', icon: 'brief' },
-  { n: '03', title: 'Talk & trade live', body: 'Five minutes on a live voice call with real-time captions. Pitch, counter, revise — zero cameras.', tone: 'orange', icon: 'call' },
+  { n: '03', title: 'Talk & trade live', body: 'Alternating timed speaking turns with optional captions. Pitch, counter, revise — zero cameras.', tone: 'orange', icon: 'call' },
   { n: '04', title: 'Sign the receipt', body: 'Both confirm the same revision on the call and the deal condenses into a signed receipt.', tone: 'paper', icon: 'receipt' },
 ] as const;
+const MARQUEE = ['Live voice call', 'Zero cameras', 'Timed turns', 'Secret roles', 'Close the deal', 'No names', 'One stranger'];
 
-const ROLES = [
-  { role: 'The Engineer', vs: 'vs. The Venture Client · LIVE CALL', line: 'Aster Aerospace × Meridian Ventures. $4.50M–$6.00M, 3 delivery schedules, one investor deadline.', tone: 'electric', live: true },
-  { role: 'The Landlord', vs: 'vs. The Tenant', line: 'Fill the unit before the month ends — without dropping below your floor.', tone: 'sky', live: false },
-  { role: 'The Founder', vs: 'vs. The Investor', line: 'Raise the round. Keep the board seat. Pick which one you would trade.', tone: 'navy', live: false },
-  { role: 'The Collector', vs: 'vs. The Dealer', line: 'You want the piece. Hear the bluff in their voice without tipping your hand.', tone: 'orange', live: false },
-  { role: 'The Agent', vs: 'vs. The Club', line: 'Your client wants term length. The club wants a discount. Find the overlap.', tone: 'paper', live: false },
-  { role: 'The Buyer', vs: 'vs. The Seller', line: 'A used car, a hidden dent, and a deadline only one of you knows.', tone: 'sky', live: false },
-] as const;
 
-const MARQUEE = ['Live voice call', 'Zero cameras', 'Five minutes', 'Secret roles', 'Close the deal', 'No names', 'One stranger'];
 
 /* ------------------------------------------------------------------ */
 /* Small pieces                                                       */
@@ -67,13 +61,14 @@ function StepIcon({ kind }: { kind: (typeof STEPS)[number]['icon'] }) {
 
 /** Wise-inspired dark outer showcase card housing a crisp white live-animated stage. */
 function DemoRound() {
+  const {scenario, rules} = useGameConfig();
   return (
     <div className="demo-showcase" aria-label="Example voice call round, illustrated">
       <div className="demo-showcase-top">
         <div>
           <h2 className="demo-showcase-title">Live anonymous voice calls, zero cameras</h2>
           <p className="demo-showcase-copy">
-            Hop on a 5-minute audio call for a $4.50M–$6.00M aerospace contract. Live captions track every offer, and both callers confirm the same revision to mint the receipt.{' '}
+            Take {rules.turnSeconds}-second speaking turns for a {formatMoney(rules.prices[0])}–{formatMoney(rules.prices.at(-1)!)} contract. Both callers confirm the same revision to mint the receipt.{' '}
             <Link to="/demo">Try the call sandbox</Link>
           </p>
         </div>
@@ -84,14 +79,14 @@ function DemoRound() {
         <div className="demo-bar">
           <div className="demo-bar-left">
             <span className="live-dot" aria-hidden="true" />
-            <span className="demo-room mono">LIVE AUDIO CALL · ROOM K7Q2</span>
+            <span className="demo-room mono">ILLUSTRATED EXAMPLE · NOT A LIVE ROOM</span>
           </div>
           <div className="demo-clock" aria-hidden="true">
             <svg width="40" height="40" viewBox="0 0 40 40">
               <circle cx="20" cy="20" r="16" className="ring-track" />
               <circle cx="20" cy="20" r="16" className="ring-fill" pathLength={100} />
             </svg>
-            <span className="demo-time tnum mono">4:59</span>
+            <span className="demo-time tnum mono">{rules.turnSeconds}s</span>
           </div>
         </div>
 
@@ -100,7 +95,7 @@ function DemoRound() {
           <div className="demo-caller is-you">
             <span className="demo-orb is-you">AV</span>
             <div className="demo-caller-meta">
-              <strong>You · Alex Vega</strong>
+              <strong>You · {scenario.roles[0].name}</strong>
               <small>Mic live · Blue channel</small>
             </div>
             <div className="demo-wave is-you">
@@ -111,7 +106,7 @@ function DemoRound() {
           <div className="demo-caller is-them">
             <span className="demo-orb is-them">MR</span>
             <div className="demo-caller-meta">
-              <strong>Morgan Reed · Stranger</strong>
+              <strong>{scenario.roles[1].name} · Stranger</strong>
               <small>Speaking · Orange channel</small>
             </div>
             <div className="demo-wave is-them">
@@ -122,9 +117,9 @@ function DemoRound() {
 
         <div className="demo-body">
           <div className="demo-feed">
-            <div className="msg them" data-step><span className="who">🔊 Morgan Reed · Live audio</span>“Our investor showcase is at month 6 — $5.00M is our target cap.”</div>
-            <div className="msg you" data-step><span className="who">🎙️ You · Alex Vega</span>“How about a live demo at month 6 and the full satellite at month 8?”</div>
-            <div className="msg them" data-step><span className="who">🔊 Morgan Reed · Live audio</span>“Staged delivery works! Meet at $5.25M and I’ll sign right now.”</div>
+            <div className="msg them" data-step><span className="who">🔊 {scenario.roles[1].name} · Live audio</span>“Our investor showcase is at month 6 — $5.00M is our target cap.”</div>
+            <div className="msg you" data-step><span className="who">🎙️ You · {scenario.roles[0].name}</span>“How about a live demo at month 6 and the full satellite at month 8?”</div>
+            <div className="msg them" data-step><span className="who">🔊 {scenario.roles[1].name} · Live audio</span>“Staged delivery works! Meet at $5.25M and I’ll sign right now.”</div>
             <div className="proposal" data-step>
               <div className="proposal-head mono">SHARED PROPOSAL · REV 2</div>
               <div className="proposal-terms">
@@ -143,9 +138,9 @@ function DemoRound() {
             <div className="dossier-eyebrow mono">PRIVATE BRIEF — ALEX VEGA</div>
             <div className="dossier-role">The Engineer</div>
             <ul className="objectives">
-              <li data-obj><span className="tick" />Close a confirmed deal (+20)</li>
-              <li data-obj><span className="tick" />Full prototype at month 8 (+20)</li>
-              <li data-obj><span className="tick" />Target price ≥ $5.50M (+20)</li>
+              <li data-obj><span className="tick" />Close a confirmed deal (+{rules.objectivePoints})</li>
+              <li data-obj><span className="tick" />Meet your private schedule target (+{rules.objectivePoints})</li>
+              <li data-obj><span className="tick" />Meet your private price target (+{rules.objectivePoints})</li>
             </ul>
             <p className="dossier-note">Eyes only — partner never sees this.</p>
           </aside>
@@ -160,6 +155,8 @@ function DemoRound() {
 /* ------------------------------------------------------------------ */
 
 export default function Landing() {
+  const {scenario, rules} = useGameConfig();
+  const availableRoles = [{role: scenario.roles[0].role, vs: `vs. ${scenario.roles[1].role}`, line: scenario.title, tone: "electric", live: true}];
   const root = useRef<HTMLDivElement>(null);
   const [reduced] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
@@ -220,18 +217,18 @@ export default function Landing() {
         const stamp = q('.demo .stamp');
         const time = q('.demo-time')[0];
         const ring = q('.ring-fill')[0];
-        const clock = { s: 299 };
+        const clock = { s: rules.turnSeconds };
         const paint = () => {
           const s = Math.max(0, Math.round(clock.s));
           time.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-          ring.setAttribute('stroke-dashoffset', String(100 - (s / 300) * 100));
+          ring.setAttribute('stroke-dashoffset', String(100 - (s / rules.turnSeconds) * 100));
         };
 
         gsap.set([...steps, typing, stamp], { autoAlpha: 0, y: 18 });
         gsap.set(accs, { autoAlpha: 0, scale: 0.6 });
         gsap.set(stamp, { scale: 2.4, rotate: -14, y: 0 });
 
-        const loop = gsap.timeline({ repeat: -1, repeatDelay: 0.6, delay: 1.6, onRepeat: () => { clock.s = 299; } });
+        const loop = gsap.timeline({ repeat: -1, repeatDelay: 0.6, delay: 1.6, onRepeat: () => { clock.s = rules.turnSeconds; } });
         const say = (target: Element, at?: string | number) => {
           loop.to(typing, { autoAlpha: 1, y: 0, duration: 0.3 }, at)
             .to(typing, { autoAlpha: 0, duration: 0.2 }, '+=0.9')
@@ -394,7 +391,7 @@ export default function Landing() {
 
         <div className="chip-wrap c1" data-depth="1.4" aria-hidden="true"><span className="chip chip-you">🎙️ You</span></div>
         <div className="chip-wrap c2" data-depth="-1" aria-hidden="true"><span className="chip chip-them">🔊 Caller</span></div>
-        <div className="chip-wrap c3" data-depth="0.8" aria-hidden="true"><span className="chip chip-clock mono">05:00</span></div>
+        <div className="chip-wrap c3" data-depth="0.8" aria-hidden="true"><span className="chip chip-clock mono">{rules.turnSeconds}s</span></div>
         <div className="chip-wrap c4" data-depth="-1.6" aria-hidden="true"><span className="chip chip-deal">$ Deal?</span></div>
 
         <div className="hero-copy">
@@ -403,7 +400,7 @@ export default function Landing() {
             <span className="line"><Words text="Hop on a call." /></span>
             <span className="line"><Words text="Close the deal." /></span>
           </h1>
-          <p className="hero-sub">Zero cameras. Get dealt a secret role, talk live on an anonymous 5-minute audio call, and lock in a signed receipt before the clock runs out.</p>
+          <p className="hero-sub">Zero cameras. Get dealt a secret role, talk live on an anonymous call with timed speaking turns, and lock in a signed receipt before the clock runs out.</p>
           <div className="hero-ctas">
             <Link to="/play" className="btn btn-primary btn-lg magnetic">Open Command Hub <span className="arrow">→</span></Link>
             <Link to="/setup?mode=sparring" className="btn btn-secondary btn-lg">🎙️ Instant voice call</Link>
@@ -456,9 +453,9 @@ export default function Landing() {
       <section className="stats" aria-labelledby="stats-heading">
         <h2 id="stats-heading" className="display section-title reveal center"><Words text="The rules fit on a napkin." /></h2>
         <div className="stats-grid">
-          <div className="stat"><span className="stat-num display tnum" data-count="300" data-format="clock">5:00</span><span className="stat-label">on the clock</span></div>
-          <div className="stat"><span className="stat-num display tnum" data-count="2">2</span><span className="stat-label">anonymous strangers</span></div>
-          <div className="stat"><span className="stat-num display tnum" data-count="3">3</span><span className="stat-label">secret objectives each</span></div>
+          <div className="stat"><span className="stat-num display tnum" data-count={rules.talkSeconds} data-format="clock">{Math.floor(rules.talkSeconds / 60)}:{String(rules.talkSeconds % 60).padStart(2, "0")}</span><span className="stat-label">on the clock</span></div>
+          <div className="stat"><span className="stat-num display tnum" data-count={scenario.roles.length}>{scenario.roles.length}</span><span className="stat-label">anonymous strangers</span></div>
+          <div className="stat"><span className="stat-num display tnum" data-count={rules.missionMax / rules.objectivePoints}>{rules.missionMax / rules.objectivePoints}</span><span className="stat-label">secret objectives each</span></div>
           <div className="stat stat-zero"><span className="stat-num display tnum">0</span><span className="stat-label">cameras. Ever.</span></div>
         </div>
       </section>
@@ -472,7 +469,7 @@ export default function Landing() {
         </div>
         <div className="roles-viewport">
           <ul className="roles-track">
-            {ROLES.map(r => (
+            {availableRoles.map(r => (
               <li key={r.role} className={`role-card tone-${r.tone}`}>
                 <span className="role-eyebrow mono">{r.live ? 'SC. 001 · PLAYABLE NOW' : 'SCENARIO ARCHETYPE'}</span>
                 <h3 className="role-name display">{r.role}</h3>
@@ -480,7 +477,7 @@ export default function Landing() {
                 <p className="role-line">{r.line}</p>
                 {r.live ? (
                   <Link to="/setup?mode=sparring" className="btn btn-secondary btn-sm" style={{ alignSelf: 'flex-start', marginTop: 8 }}>
-                    Launch SC.001 →
+                    Launch {scenario.id} →
                   </Link>
                 ) : null}
                 <span className="role-seal" aria-hidden="true">✦</span>

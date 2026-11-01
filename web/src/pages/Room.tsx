@@ -1,3 +1,4 @@
+import { useGameConfig } from '../providers/GameConfigProvider';
 import { FormEvent, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { gsap } from 'gsap';
@@ -22,6 +23,7 @@ import { useVoiceCall } from '../lib/voiceCall';
 import { useToast } from '../providers/ToastProvider';
 
 export default function Room() {
+  const { scenario, rules } = useGameConfig();
   const { code = '' } = useParams();
   const roomCode = code.toUpperCase();
   const navigate = useNavigate();
@@ -108,7 +110,7 @@ export default function Room() {
     const key = `${view.round}:${turn.index}`;
     if (warnedTurn.current === key) return;
     warnedTurn.current = key;
-    toast('10 seconds left — wrap up your point. Your microphone will mute when your turn ends.');
+    toast(`${rules.warningSeconds} seconds left — wrap up your point. Your microphone will mute when your turn ends.`);
   }, [view?.round, view?.speakingTurn, voice.canSpeak, voice.turnRemaining, toast]);
 
   async function coachingConsent(granted: boolean) {
@@ -292,19 +294,19 @@ export default function Room() {
                 <h1 className="display dossier-hero-name">{view.you.role}</h1>
                 <p className="dossier-employer">{view.you.employer} · Alias on VC: <strong>{view.you.name}</strong></p>
               </div>
-              <CountdownRing deadline={view.deadline} serverOffset={serverOffset} totalSeconds={45} label="Call starts" paused={view.paused} />
+              <CountdownRing deadline={view.deadline} serverOffset={serverOffset} totalSeconds={rules.briefSeconds} label="Call starts" paused={view.paused} />
             </div>
 
             <p className="dossier-context">{view.you.context}</p>
 
             <div className="dossier-goals">
-              <div className="kicker mono">THREE SECRET OBJECTIVES (20 PTS EACH)</div>
+              <div className="kicker mono">YOUR SECRET OBJECTIVES ({rules.objectivePoints} PTS EACH)</div>
               <ol>
                 {view.you.objectives.map((obj, i) => (
                   <li key={i}>
                     <span className="goal-idx mono">0{i + 1}</span>
                     <span className="goal-txt">{obj}</span>
-                    <span className="goal-pts mono tnum">+20</span>
+                    <span className="goal-pts mono tnum">+{rules.objectivePoints}</span>
                   </li>
                 ))}
               </ol>
@@ -312,8 +314,8 @@ export default function Room() {
 
             {/* Live greenroom mic meter */}
             <div className="notice" style={{ marginBottom: 18 }}>
-              <strong>Six speaking turns · 45 seconds each</strong>
-              <p>Alex starts. A 10-second reminder helps you wrap up, then your microphone mutes until your next turn. Both microphones stay muted during final signing.</p>
+              <strong>{rules.turnCount} speaking turns · {rules.turnSeconds} seconds each</strong>
+              <p>{scenario.roles[0].short} starts. A {rules.warningSeconds}-second reminder helps you wrap up, then your microphone mutes until your next turn. Both microphones stay muted during final signing.</p>
               <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginTop: 12 }}>
                 <input type="checkbox" checked={view.coaching?.consent ?? false} disabled={!view.coaching?.configured} onChange={e => void coachingConsent(e.target.checked)} />
                 <span>Enable AI coaching for this round. My speaking turns go to ElevenLabs for transcription; the conversation text and my private brief go to the configured LLM ({view.coaching?.model ?? 'not configured'}) for rubric feedback. PlayCall stores transcripts and feedback, not audio files. Provider retention policies apply. Both players must opt in.</span>
@@ -389,23 +391,23 @@ export default function Room() {
                   ROOM {view.code} · R{view.round} ⧉
                 </button>
               </div>
-              <h1 className="stage-title">The Satellite Deal</h1>
+              <h1 className="stage-title">{scenario.title}</h1>
             </div>
 
             <div className="stage-topbar-right">
               <CountdownRing
                 deadline={view.deadline}
                 serverOffset={serverOffset}
-                totalSeconds={view.phase === 'finalize' ? 45 : 270}
+                totalSeconds={view.phase === 'finalize' ? rules.signingSeconds : rules.talkSeconds}
                 label={view.phase === 'finalize' ? 'Final sign' : 'Live VC'}
                 paused={view.paused}
               />
             </div>
           </div>
 
-          <div className={`notice${voice.canSpeak && voice.turnRemaining <= 10 ? ' notice-danger' : ''}`} role="status" aria-live="polite" style={{ marginBottom: 18 }} data-testid="speaking-turn">
-            <strong>{view.phase === 'finalize' ? 'Speaking time is over · both microphones muted' : view.paused ? 'Turn paused · microphones muted' : view.speakingTurn ? `Turn ${view.speakingTurn.index + 1} / ${view.speakingTurn.total} · ${voice.canSpeak ? 'Your turn' : `${view.speakingTurn.speaker === 'alex' ? 'Alex' : 'Morgan'}’s turn`}` : 'Switching turns · microphones muted'}</strong>
-            {view.phase === 'talk' && view.speakingTurn ? <p><span className="mono tnum" data-testid="turn-seconds">{voice.turnRemaining}s</span> · {voice.canSpeak ? voice.turnRemaining <= 10 ? 'Wrap up — your microphone mutes at zero.' : 'You have the floor. Your microphone mutes automatically at zero.' : 'Listen now. Your microphone opens on your next turn unless you manually mute it.'}</p> : <p>Review and sign the current offer before the final clock runs out.</p>}
+          <div className={`notice${voice.canSpeak && voice.turnRemaining <= rules.warningSeconds ? ' notice-danger' : ''}`} role="status" aria-live="polite" style={{ marginBottom: 18 }} data-testid="speaking-turn">
+            <strong>{view.phase === 'finalize' ? 'Speaking time is over · both microphones muted' : view.paused ? 'Turn paused · microphones muted' : view.speakingTurn ? `Turn ${view.speakingTurn.index + 1} / ${view.speakingTurn.total} · ${voice.canSpeak ? 'Your turn' : `${view.peer?.short || 'Caller'}’s turn`}` : 'Switching turns · microphones muted'}</strong>
+            {view.phase === 'talk' && view.speakingTurn ? <p><span className="mono tnum" data-testid="turn-seconds">{voice.turnRemaining}s</span> · {voice.canSpeak ? voice.turnRemaining <= rules.warningSeconds ? 'Wrap up — your microphone mutes at zero.' : 'You have the floor. Your microphone mutes automatically at zero.' : 'Listen now. Your microphone opens on your next turn unless you manually mute it.'}</p> : <p>Review and sign the current offer before the final clock runs out.</p>}
             {view.coaching?.allConsented ? <p>{voice.recordingStatus || 'AI coaching enabled. Speech is transcribed after each turn.'}</p> : <p>AI coaching off for this round.</p>}
           </div>
 
@@ -593,7 +595,7 @@ export default function Room() {
             </button>
 
             <button type="button" className="dock-btn" onClick={() => setDossierOpen(true)}>
-              <span>Brief (3)</span>
+              <span>Brief ({view.you.objectives.length})</span>
             </button>
 
             <button type="button" className="dock-btn" onClick={() => setLogOpen(true)}>
@@ -620,7 +622,7 @@ export default function Room() {
                 {view.you.objectives.map((g, i) => (
                   <li key={i}>
                     <span>{g}</span>
-                    <b className="mono tnum">+20</b>
+                    <b className="mono tnum">+{rules.objectivePoints}</b>
                   </li>
                 ))}
               </ol>
@@ -692,6 +694,7 @@ export default function Room() {
         open={offerOpen}
         onClose={() => setOfferOpen(false)}
         packages={view.packages}
+    roomCode={roomCode}
         initialPrice={view.deal?.price ?? (view.you.id === 'alex' ? 550 : 500)}
         initialPackage={view.deal?.package ?? 'phased'}
         roleId={view.you.id}
@@ -750,7 +753,7 @@ export default function Room() {
         <p style={{ color: 'var(--muted)', marginBottom: 16 }}>{view.you.context}</p>
         <h3 style={{ fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Secret goals</h3>
         <ul style={{ paddingLeft: 18, marginBottom: 20, display: 'grid', gap: 8 }}>
-          {view.you.objectives.map((o, i) => <li key={i}>{o} (<strong>+20 pts</strong>)</li>)}
+          {view.you.objectives.map((o, i) => <li key={i}>{o} (<strong>+{rules.objectivePoints} pts</strong>)</li>)}
         </ul>
         {view.you.background.map(b => (
           <div key={b.title} style={{ padding: 12, borderRadius: 12, background: 'var(--surface-subtle)', marginBottom: 10 }}>

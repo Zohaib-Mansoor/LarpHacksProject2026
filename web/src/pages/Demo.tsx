@@ -1,23 +1,24 @@
-import { useState } from 'react';
+import { useGameConfig } from '../providers/GameConfigProvider';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FlowStepperHeader } from '../components/FlowStepperHeader';
 import { OfferSheet } from '../components/OfferSheet';
-import { DEMO_LINES, DEMO_PACKAGES, DealProposal, formatMoney, scoreDemoDeal, startSparring } from '../lib/api';
-
-const ALEX_GOALS = ['Close a mutually confirmed deal', 'Agree a price of at least $5.50M', 'Deliver the full prototype at month 8'];
-const MORGAN_GOALS = ['Close a mutually confirmed deal', 'Agree a price of at most $5.00M', 'Receive a first deliverable by month 6'];
+import { DealProposal, formatMoney, startSparring } from '../lib/api';
 
 export default function Demo() {
+  const { scenario, rules, packages: DEMO_PACKAGES, demo: {lines: DEMO_LINES} } = useGameConfig();
   const navigate = useNavigate();
   const [lineCount, setLineCount] = useState(2);
-  const [deal, setDeal] = useState<DealProposal>({ price: 525, package: 'phased', proposer: 'alex' });
+  const [deal, setDeal] = useState<DealProposal>({ price: rules.defaultPrice, package: rules.defaultPackage, proposer: 'alex' });
   const [rev, setRev] = useState(1);
   const [alexOk, setAlexOk] = useState(true);
   const [morganOk, setMorganOk] = useState(false);
   const [offerOpen, setOfferOpen] = useState(false);
 
   const bothSigned = alexOk && morganOk;
-  const scores = scoreDemoDeal(deal, bothSigned);
+  const [scores, setScores] = useState<Record<string, number[]>>({alex: [], morgan: []});
+  const [scoreError, setScoreError] = useState('');
+  useEffect(() => { const controller = new AbortController(); setScores({alex: [], morgan: []}); void fetch('/api/vc/preview', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({deal, confirmed: bothSigned}), signal: controller.signal}).then(async r => {if (!r.ok) throw Error('Score preview unavailable'); setScores((await r.json()).scores); setScoreError('');}).catch(e => {if (!controller.signal.aborted) setScoreError(e.message);}); return () => controller.abort(); }, [deal, bothSigned]);
   const pkg = DEMO_PACKAGES.find(p => p.id === deal.package)!;
 
   return (
@@ -25,10 +26,11 @@ export default function Demo() {
       <FlowStepperHeader step={bothSigned ? 3 : 2} badge="DM" closeTo="/play" />
 
       <div className="stage-shell">
+        {scoreError ? <p role="alert">{scoreError}</p> : null}
         <aside className="demo-tag-banner">
           <div>
             <span className="demo-pill-badge">CALL SANDBOX</span>
-            <span>Sample call transcript &amp; live deal arithmetic — test any price ($4.50M–$6.00M) before hopping on a real voice call.</span>
+            <span>Sample call transcript &amp; live deal arithmetic — test any price ({formatMoney(rules.prices[0])}–{formatMoney(rules.prices.at(-1)!)}) before hopping on a real voice call.</span>
           </div>
           <button
             type="button"
@@ -46,12 +48,12 @@ export default function Demo() {
           <aside className="stage-side">
             <div className="party-card is-you">
               <div className="party-tag">SAMPLE PLAYER A · BLUE</div>
-              <strong>Alex Vega · Aerospace engineer</strong>
+              <strong>{scenario.roles[0].name} · {scenario.roles[0].role}</strong>
               <ul className="mini-goal-list">
-                {ALEX_GOALS.map((g, i) => (
+                {['Agreement', 'Price objective', 'Schedule objective'].map((g, i) => (
                   <li key={i} className={scores.alex[i] > 0 ? 'hit' : ''}>
                     <span>{g}</span>
-                    <b className="mono tnum">{bothSigned ? `+${scores.alex[i]}` : '+20'}</b>
+                    <b className="mono tnum">{bothSigned ? `+${scores.alex[i]}` : `+${rules.objectivePoints}`}</b>
                   </li>
                 ))}
               </ul>
@@ -59,12 +61,12 @@ export default function Demo() {
 
             <div className="party-card is-them">
               <div className="party-tag">SAMPLE PLAYER B · ORANGE</div>
-              <strong>Morgan Reed · Venture client</strong>
+              <strong>{scenario.roles[1].name} · {scenario.roles[1].role}</strong>
               <ul className="mini-goal-list">
-                {MORGAN_GOALS.map((g, i) => (
+                {['Agreement', 'Price objective', 'Schedule objective'].map((g, i) => (
                   <li key={i} className={scores.morgan[i] > 0 ? 'hit' : ''}>
                     <span>{g}</span>
-                    <b className="mono tnum">{bothSigned ? `+${scores.morgan[i]}` : '+20'}</b>
+                    <b className="mono tnum">{bothSigned ? `+${scores.morgan[i]}` : `+${rules.objectivePoints}`}</b>
                   </li>
                 ))}
               </ul>
@@ -76,7 +78,7 @@ export default function Demo() {
               {DEMO_LINES.slice(0, lineCount).map(m => (
                 <div key={m.id} className={`chat-bubble ${m.speaker === 'alex' ? 'is-you' : 'is-them'}`}>
                   <div className="bubble-meta">
-                    <span>{m.speaker === 'alex' ? 'Alex Vega' : 'Morgan Reed'}</span>
+                    <span>{scenario.roles.find(r => r.id === m.speaker)?.name}</span>
                     <time className="mono tnum">{m.time}</time>
                   </div>
                   <p>{m.text}</p>
@@ -103,10 +105,10 @@ export default function Demo() {
                     Adjust price / package
                   </button>
                   <button type="button" className={`wise-pill ${alexOk ? 'wise-pill-confirm' : 'wise-pill-soft'}`} onClick={() => setAlexOk(v => !v)}>
-                    {alexOk ? '✓ Alex signed' : 'Sign as Alex'}
+                    {alexOk ? `✓ ${scenario.roles[0].short} signed` : `Sign as ${scenario.roles[0].short}`}
                   </button>
                   <button type="button" className={`wise-pill ${morganOk ? 'wise-pill-orange' : 'wise-pill-soft'}`} onClick={() => setMorganOk(v => !v)}>
-                    {morganOk ? '✓ Morgan signed' : 'Sign as Morgan'}
+                    {morganOk ? `✓ ${scenario.roles[1].short} signed` : `Sign as ${scenario.roles[1].short}`}
                   </button>
                 </div>
               </div>
@@ -117,7 +119,7 @@ export default function Demo() {
                     <div>
                       <span className="mono" style={{ fontSize: 11, opacity: 0.7 }}>SIGNED DEMO RECEIPT</span>
                       <div style={{ fontWeight: 700, fontSize: 18 }}>
-                        Alex earns {scores.alex.reduce((a, b) => a + b, 0)}/60 pts · Morgan earns {scores.morgan.reduce((a, b) => a + b, 0)}/60 pts
+                        {scenario.roles[0].short} earns {scores.alex.reduce((a, b) => a + b, 0)}/{rules.missionMax} pts · {scenario.roles[1].short} earns {scores.morgan.reduce((a, b) => a + b, 0)}/{rules.missionMax} pts
                       </div>
                     </div>
                     <Link to="/setup?mode=sparring" className="wise-pill wise-pill-solid">Start real round →</Link>

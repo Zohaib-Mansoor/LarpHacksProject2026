@@ -1,3 +1,4 @@
+import { useGameConfig } from '../providers/GameConfigProvider';
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
@@ -43,8 +44,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Link to="/setup?mode=match" className="wise-sub-item">Stranger queue</Link>
               <Link to="/setup?mode=create" className="wise-sub-item">Create invite room</Link>
               <Link to="/setup?mode=join" className="wise-sub-item">Join with 6-char code</Link>
-              <Link to="/setup?mode=sparring&role=alex" className="wise-sub-item">Play as Alex Vega</Link>
-              <Link to="/setup?mode=sparring&role=morgan" className="wise-sub-item">Play as Morgan Reed</Link>
+              <Link to="/setup?mode=sparring&role=alex" className="wise-sub-item">Play as first role</Link>
+              <Link to="/setup?mode=sparring&role=morgan" className="wise-sub-item">Play as second role</Link>
             </div>
           ) : null}
 

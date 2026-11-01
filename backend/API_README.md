@@ -377,3 +377,7 @@ in [INTEGRATION.md](../docs/INTEGRATION.md).
 # Timed voice turns and coaching
 
 See [the voice integration API](../docs/VOICE_INTEGRATION.md#speaking-turns-and-optional-ai-coaching) for `/api/vc/coaching/consent`, `/api/vc/coaching/transcribe`, and `/api/vc/coaching/evaluate`. Voice calls alternate six 45-second speaking turns with a 10-second warning and automatic microphone muting. Coaching needs both players' opt-in plus server-side ElevenLabs and LLM keys; it remains disabled without them. Mission scoring works independently.
+
+## Server-driven frontend configuration
+
+`GET /api/vc/config` returns public scenario identities, legal proposal prices/packages, timing rules, mission limits, and authored demo dialogue. It never returns private briefs. `GET /api/vc/me/summary` returns authenticated all-time `{points, rounds, deals}` from PostgreSQL, independent of the bounded history list. `POST /api/vc/preview` accepts `{deal, confirmed, code?}`; with a room code it returns only the authenticated player’s `{yours}` objective-point preview. Without a code it returns `{scores}` for the explicitly labelled public sandbox. Final scores still require the signed revision.

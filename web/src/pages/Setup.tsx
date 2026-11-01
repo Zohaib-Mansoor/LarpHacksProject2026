@@ -1,3 +1,4 @@
+import { useGameConfig } from '../providers/GameConfigProvider';
 import { FormEvent, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { gsap } from 'gsap';
@@ -15,19 +16,15 @@ type SetupMode = 'sparring' | 'match' | 'create' | 'join';
 type RoleChoice = 'random' | 'alex' | 'morgan';
 
 const MODE_LABELS: Record<SetupMode, { title: string; sub: string; tag: string }> = {
-  sparring: { title: 'Instant voice sparring call', sub: 'Scripted practice caller · optional browser captions', tag: 'Voice AI' },
+  sparring: { title: 'Instant voice sparring call', sub: 'Scripted practice caller · optional browser captions', tag: 'Scripted' },
   match: { title: 'Anonymous stranger call', sub: 'Live WebRTC audio pairing · server-assigned alias', tag: 'Live 2P' },
   create: { title: 'Private invite call', sub: 'Generates a 6-character call code for a friend or 2nd tab', tag: 'Invite' },
   join: { title: 'Join existing call code', sub: 'Enter a 6-character invite code to dial into a room', tag: 'Dial in' },
 };
 
-const ROLE_LABELS: Record<RoleChoice, { title: string; sub: string }> = {
-  random: { title: 'Server-assigned secret role', sub: 'Either Alex Vega (Engineer) or Morgan Reed (Client)' },
-  alex: { title: 'Alex Vega · Aster Aerospace', sub: 'Goal: close ≥ $5.50M with full build at month 8' },
-  morgan: { title: 'Morgan Reed · Meridian Ventures', sub: 'Goal: close ≤ $5.00M with first deliverable by month 6' },
-};
-
 export default function Setup() {
+  const { scenario, rules } = useGameConfig();
+  const ROLE_LABELS = Object.fromEntries([['random', {title: 'Server-assigned secret role', sub: scenario.roles.map(r => r.name).join(' or ')}], ...scenario.roles.map(r => [r.id, {title: `${r.name} · ${r.employer}`, sub: 'Your private objectives appear in the briefing.'}])]) as Record<RoleChoice, {title: string; sub: string}>;
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const root = useRef<HTMLDivElement>(null);
@@ -113,7 +110,7 @@ export default function Setup() {
         {/* Top Wise amount/clock header */}
         <div className="flow-amount-head flow-row-anim">
           <div>
-            <div className="flow-caption">Scenario · The Satellite Deal</div>
+            <div className="flow-caption">Scenario · {scenario.title}</div>
             <button type="button" className="flow-currency-pill" onClick={cycleMode}>
               <span className="pill-dot" />
               <span>{MODE_LABELS[mode].tag}</span>
@@ -122,7 +119,7 @@ export default function Setup() {
               </svg>
             </button>
           </div>
-          <div className="flow-big-figure display tnum">05:00</div>
+          <div className="flow-big-figure display tnum">{rules.turnCount} × {rules.turnSeconds}s</div>
         </div>
 
         {/* Mode quick tabs */}
@@ -166,7 +163,7 @@ export default function Setup() {
             <div className="summary-text">
               <span className="summary-label">Playing as</span>
               <strong>{mode === 'sparring' ? ROLE_LABELS[role].title : 'Server-assigned secret identity'}</strong>
-              <small>{mode === 'sparring' ? ROLE_LABELS[role].sub : 'Creator gets Alex Vega; joiner gets Morgan Reed'}</small>
+              <small>{mode === 'sparring' ? ROLE_LABELS[role].sub : `Creator: ${scenario.roles[0].name}; joiner: ${scenario.roles[1].name}`}</small>
             </div>
             {mode === 'sparring' ? (
               <button type="button" className="wise-change-pill" onClick={cycleRole}>Switch</button>
@@ -182,7 +179,7 @@ export default function Setup() {
             <div className="summary-text">
               <span className="summary-label">Starts</span>
               <strong>Today — in seconds</strong>
-              <small>45s private brief, then 5:00 negotiation clock</small>
+              <small>{rules.briefSeconds}s private brief, then {rules.turnCount} × {rules.turnSeconds}s speaking turns</small>
             </div>
             <Link to="/demo" className="wise-change-pill">Sample</Link>
           </div>

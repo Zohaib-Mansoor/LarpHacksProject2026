@@ -1,3 +1,4 @@
+import { useGameConfig } from '../providers/GameConfigProvider';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { gsap } from 'gsap';
@@ -18,6 +19,7 @@ import { useToast } from '../providers/ToastProvider';
 import { VoiceFeedback } from '../components/VoiceFeedback';
 
 export default function Results() {
+  const { rules } = useGameConfig();
   const { code = '' } = useParams();
   const roomCode = code.toUpperCase();
   const navigate = useNavigate();
@@ -194,7 +196,7 @@ export default function Results() {
                   <h2>{view.you.name}</h2>
                 </div>
                 <div className="big-pts display tnum">
-                  <span ref={scoreNumRef}>{myScore}</span><small>/60</small>
+                  <span ref={scoreNumRef}>{myScore}</span><small>/{rules.missionMax}</small>
                 </div>
               </div>
               <ul className="goal-result-list">
@@ -218,7 +220,7 @@ export default function Results() {
                   <h2>{view.peer?.name || 'Partner'}</h2>
                 </div>
                 <div className="big-pts is-partner display tnum">
-                  {peerScore}<small>/60</small>
+                  {peerScore}<small>/{rules.missionMax}</small>
                 </div>
               </div>
 

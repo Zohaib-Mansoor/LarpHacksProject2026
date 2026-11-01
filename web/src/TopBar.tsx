@@ -1,13 +1,15 @@
+import { useGameConfig } from './providers/GameConfigProvider';
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTheme } from './providers/ThemeProvider';
 import { HashLink } from './motion/HashLink';
-import { getProfile, getRoundHistory } from './lib/api';
+import { getProfile } from './lib/api';
 import { useSession } from './providers/SessionProvider';
 
 const FLOW_PREFIXES = ['/setup', '/room/', '/demo', '/results/'];
 
 export function TopBar() {
+  const { rules, missionSummary } = useGameConfig();
   const { user } = useSession();
   const { theme, toggle } = useTheme();
   const { pathname } = useLocation();
@@ -28,7 +30,7 @@ export function TopBar() {
   if (isFlow) return null;
 
   const profile = getProfile();
-  const totalPts = getRoundHistory().reduce((s, r) => s + r.points, 0);
+  const totalPts = missionSummary?.points ?? '—';
   const initials = (profile.callsign || 'PC').slice(0, 2).toUpperCase();
   const closeAnnounce = () => {
     sessionStorage.setItem('playcall-announce', 'closed');
@@ -40,7 +42,7 @@ export function TopBar() {
       {announce && isHero ? (
         <div className="announce">
           <span>
-            Live 5-minute voice-call negotiations — secret roles, real-time audio, zero cameras.{' '}
+            Live turn-based voice-call negotiations — secret roles, real-time audio, zero cameras.{' '}
             <Link to="/setup?mode=sparring">Hop on an instant call</Link>
           </span>
           <button className="announce-close" onClick={closeAnnounce} aria-label="Dismiss announcement">
@@ -68,7 +70,7 @@ export function TopBar() {
         <div className="topbar-right">
           {isAppWorkspace ? (
             <Link to="/setup?mode=sparring" className="earn-pill">
-              Up to 60 pts / deal · {totalPts} pts
+              Up to {rules.missionMax} pts / deal · {totalPts} pts
             </Link>
           ) : null}
           <button

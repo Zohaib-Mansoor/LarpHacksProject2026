@@ -1,3 +1,4 @@
+import { useGameConfig } from '../providers/GameConfigProvider';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { gsap } from 'gsap';
@@ -6,6 +7,7 @@ import { formatMoney, getRoundHistory, startSparring, syncAccount } from '../lib
 import { useToast } from '../providers/ToastProvider';
 
 export default function Play() {
+  const { scenario, rules, missionSummary } = useGameConfig();
   const root = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -30,8 +32,8 @@ export default function Play() {
     window.addEventListener('focus', refresh);
     return () => { active = false; clearInterval(timer); window.removeEventListener('focus', refresh); };
   }, []);
-  const totalPoints = history.reduce((sum, r) => sum + r.points, 0);
-  const confirmedCount = history.filter(r => r.confirmed).length;
+  const totalPoints = missionSummary?.points;
+  const confirmedCount = missionSummary?.deals ?? 0;
 
   useLayoutEffect(() => {
     const el = root.current;
@@ -65,11 +67,11 @@ export default function Play() {
       <div className="hub" ref={root}>
         {/* Balance / Standing Header (Wise Dashboard style) */}
         <header className="hub-header hub-anim">
-          <div className="hub-balance-label">Mission points · Saved rounds</div>
+          <div className="hub-balance-label">Mission points · Server total</div>
           {syncError ? <p role="status">{syncError}</p> : null}
           <div className="hub-balance-row">
             <h1 className="hub-balance tnum">
-              {totalPoints} <span className="hub-unit">PTS</span>
+              {totalPoints ?? '—'} <span className="hub-unit">PTS</span>
             </h1>
             <Link to="/leaderboard" className="hub-chart-pill" title="View session standings" aria-label="View session standings">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
@@ -105,7 +107,7 @@ export default function Play() {
               <div className="cardstack-layer l2" aria-hidden="true" />
               <div className="cardstack-front">
                 <span className="cardstack-count">
-                  2 secret roles · SC.001
+                  {scenario.roles.length} secret roles · {scenario.id}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
                     <path d="m9 6 6 6-6 6" />
                   </svg>
@@ -117,8 +119,8 @@ export default function Play() {
             <div className="bento-account-body">
               <Link to="/setup?mode=sparring" className="bento-title-row">
                 <div>
-                  <h2>The Satellite Deal</h2>
-                  <p className="tnum">$4.50M – $6.00M · 5:00 clock</p>
+                  <h2>{scenario.title}</h2>
+                  <p className="tnum">{formatMoney(rules.prices[0])} – {formatMoney(rules.prices.at(-1)!)} · {rules.turnCount} × {rules.turnSeconds}s turns</p>
                 </div>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
                   <path d="m9 6 6 6-6 6" />
@@ -129,8 +131,8 @@ export default function Play() {
                 <button type="button" className="currency-row" onClick={() => void quickSpar('alex')} disabled={!!launching}>
                   <span className="channel-dot is-you">AV</span>
                   <span className="currency-label">
-                    <strong>Alex Vega · Engineer</strong>
-                    <small>Target ≥ $5.50M · Month 8</small>
+                    <strong>{scenario.roles[0].name} · {scenario.roles[0].role}</strong>
+                    <small>Private goals revealed in your brief</small>
                   </span>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                     <path d="m9 6 6 6-6 6" />
@@ -140,8 +142,8 @@ export default function Play() {
                 <button type="button" className="currency-row" onClick={() => void quickSpar('morgan')} disabled={!!launching}>
                   <span className="channel-dot is-them">MR</span>
                   <span className="currency-label">
-                    <strong>Morgan Reed · Client</strong>
-                    <small>Target ≤ $5.00M · Month 6 demo</small>
+                    <strong>{scenario.roles[1].name} · {scenario.roles[1].role}</strong>
+                    <small>Private goals revealed in your brief</small>
                   </span>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                     <path d="m9 6 6 6-6 6" />
@@ -177,7 +179,7 @@ export default function Play() {
               <span className="notched-cutout" />
             </div>
             <div className="notched-body">
-              <h2>Do more in five minutes</h2>
+              <h2>Make every turn count</h2>
               <p>Get paired anonymously, protect your private brief, and turn tough trade-offs into a mutually confirmed receipt.</p>
               <Link to="/setup" className="plus-circle" aria-label="Configure a new negotiation round">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
@@ -247,10 +249,10 @@ export default function Play() {
                   <span className="row-badge is-you">🎙️</span>
                   <span className="row-main">
                     <strong>Instant Voice Sparring Call</strong>
-                    <small>Hop on an immediate voice call with spoken responses &amp; live captions</small>
+                    <small>Practice with a scripted partner; optional speech coaching</small>
                   </span>
                   <span className="row-amount tnum">
-                    <strong>60 PTS max</strong>
+                    <strong>{rules.missionMax} PTS max</strong>
                     <small>Live audio</small>
                   </span>
                 </button>
@@ -258,10 +260,10 @@ export default function Play() {
                   <span className="row-badge is-them">2P</span>
                   <span className="row-main">
                     <strong>Two-Player WebRTC Voice Room</strong>
-                    <small>Generate a 6-character call code to talk live with a friend or second tab</small>
+                    <small>Generate a 6-character call code to talk live with a friend in another browser session</small>
                   </span>
                   <span className="row-amount tnum">
-                    <strong>5:00 call</strong>
+                    <strong>{rules.talkSeconds}s speaking</strong>
                     <small>Peer audio</small>
                   </span>
                 </Link>

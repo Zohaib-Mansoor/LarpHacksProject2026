@@ -5,6 +5,12 @@ import { VoiceStore } from './voice-store.js';
 import { GameError } from './game.js';
 import type { VoiceCoach } from './voice-coach.js';
 import { TURN_COUNT } from './voice-turns.js';
+import {
+  voiceCatalog,
+  previewVoiceDeal,
+  validVoiceDeal,
+} from './voice-catalog.js';
+import { sql } from 'drizzle-orm';
 
 const Code = Type.String({ pattern: '^[A-Za-z0-9]{6}$' });
 const Query = Type.Object({
@@ -22,6 +28,51 @@ export async function registerVoice(
 ) {
   const store = new VoiceStore(db, clock, coach);
   const routes = app.withTypeProvider<TypeBoxTypeProvider>();
+  routes.get('/api/vc/config', async () => voiceCatalog);
+  routes.get('/api/vc/me/summary', async (r) => {
+    const user = await principal(r);
+    const result = await db.execute(
+      sql`select coalesce(sum(points), 0)::int as points, count(*)::int as rounds, count(*) filter (where confirmed)::int as deals from voice_results where user_id = ${user.id}`,
+    );
+    return result.rows[0];
+  });
+  routes.post(
+    '/api/vc/preview',
+    {
+      schema: {
+        body: Type.Object(
+          {
+            code: Type.Optional(Code),
+            role: Type.Optional(
+              Type.Union([Type.Literal('alex'), Type.Literal('morgan')]),
+            ),
+            confirmed: Type.Boolean(),
+            deal: Type.Object({
+              price: Type.Integer(),
+              package: Type.String(),
+            }),
+          },
+          { additionalProperties: false },
+        ),
+      },
+    },
+    async (r) => {
+      const user = await principal(r);
+      if (!validVoiceDeal(r.body.deal))
+        throw new GameError(
+          'INVALID_DEAL',
+          'Choose valid proposal terms.',
+          400,
+        );
+      const scores = previewVoiceDeal(r.body.deal, r.body.confirmed);
+      if (r.body.code) {
+        const view = await store.read(user.id, r.body.code);
+        return { yours: scores[view.you.id] };
+      }
+      // Explicit public walkthrough arithmetic; no private briefs are returned.
+      return { scores };
+    },
+  );
   const streams = new Map<string, Set<Peer>>();
   const signals = new Map<
     string,
