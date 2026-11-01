@@ -71,5 +71,7 @@ export function buildApp(db: typeof database, origin: string, secret: string) {
     const user = await requireUser(request);
     return { room: await service.snapshot(request.params.id, user.id) };
   });
+  app.register(authRoutes, { db, auth, origin, requireUser });
+  app.register(gameRoutes, { db, auth, origin, requireUser, roomService: service });
   return app;
 }
