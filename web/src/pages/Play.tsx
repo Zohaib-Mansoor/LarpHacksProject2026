@@ -1,8 +1,8 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { gsap } from 'gsap';
 import { AppShell } from '../components/AppShell';
-import { formatMoney, getRoundHistory, startSparring } from '../lib/api';
+import { formatMoney, getRoundHistory, startSparring, syncAccount } from '../lib/api';
 import { useToast } from '../providers/ToastProvider';
 
 export default function Play() {
@@ -11,7 +11,25 @@ export default function Play() {
   const { toast } = useToast();
   const [launching, setLaunching] = useState<string | null>(null);
   const [bannerOpen, setBannerOpen] = useState(() => sessionStorage.getItem('playcall-hub-banner') !== 'closed');
-  const history = getRoundHistory();
+  const [history, setHistory] = useState(getRoundHistory);
+  const [syncError, setSyncError] = useState('');
+  useEffect(() => {
+    let active = true;
+    let busy = false;
+    const refresh = async () => {
+      if (busy) return;
+      busy = true;
+      try {
+        await syncAccount();
+        if (active) { setHistory(getRoundHistory()); setSyncError(''); }
+      } catch { if (active) setSyncError('Could not refresh saved points. Showing the last saved total.'); }
+      finally { busy = false; }
+    };
+    void refresh();
+    const timer = setInterval(() => void refresh(), 5000);
+    window.addEventListener('focus', refresh);
+    return () => { active = false; clearInterval(timer); window.removeEventListener('focus', refresh); };
+  }, []);
   const totalPoints = history.reduce((sum, r) => sum + r.points, 0);
   const confirmedCount = history.filter(r => r.confirmed).length;
 
@@ -47,7 +65,8 @@ export default function Play() {
       <div className="hub" ref={root}>
         {/* Balance / Standing Header (Wise Dashboard style) */}
         <header className="hub-header hub-anim">
-          <div className="hub-balance-label">Mission points · This browser</div>
+          <div className="hub-balance-label">Mission points · Saved rounds</div>
+          {syncError ? <p role="status">{syncError}</p> : null}
           <div className="hub-balance-row">
             <h1 className="hub-balance tnum">
               {totalPoints} <span className="hub-unit">PTS</span>

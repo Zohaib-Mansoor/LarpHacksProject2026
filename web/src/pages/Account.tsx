@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppShell } from "../components/AppShell";
 import {
@@ -8,13 +8,16 @@ import {
   syncAccount,
 } from "../lib/api";
 import { useToast } from "../providers/ToastProvider";
+import { useSession } from "../providers/SessionProvider";
 
 export default function Account() {
   const { toast } = useToast();
+  const { user } = useSession();
   const [profile, setProfile] = useState(() => getProfile());
   const [callsign, setCallsign] = useState(profile.callsign);
   const [optIn, setOptIn] = useState(profile.leaderboardOptIn);
-  const history = getRoundHistory();
+  const [history, setHistory] = useState(getRoundHistory);
+  useEffect(() => { let active = true; void syncAccount().then(() => { if (active) setHistory(getRoundHistory()); }).catch(() => {}); return () => { active = false; }; }, []);
 
   async function onSave(e: FormEvent) {
     e.preventDefault();
@@ -52,6 +55,16 @@ export default function Account() {
             (Alex Vega or Morgan Reed) — never this callsign.
           </p>
         </header>
+        {user?.isGuest ? (
+          <section className="standings-card" style={{ padding: 24, marginBottom: 20 }}>
+            <h2>You’re playing as a guest</h2>
+            <p>Create an account to keep this guest session’s saved progress, or sign in to an existing account.</p>
+            <div style={{ display: 'flex', gap: 12, marginTop: 14 }}>
+              <Link to="/signup" className="wise-pill wise-pill-solid">Create account</Link>
+              <Link to="/login" className="wise-pill wise-pill-soft">Sign in</Link>
+            </div>
+          </section>
+        ) : null}
 
         <form
           className="standings-card"
