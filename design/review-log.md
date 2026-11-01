@@ -43,3 +43,10 @@ APPROVED: "The Quiet Channel" concept + frozen tokens + component tree are the d
 
 ### OQ-4 refinement (lead)
 Enforcement point moved: POST /api/auth/sign-in/anonymous stays EXACTLY as the teammate built it (their tests call it bare and must keep passing). Instead Lane B adds POST /api/age-gate { ageConfirmed: true } which marks the current session age-gated (idempotent, server-side). Lane C's POST /api/match REQUIRES an age-gated session and returns 403 otherwise. Friend-invite rooms (existing create/join) stay ungated. /privacy must state the guest gate is a self-attestation, not age verification.
+
+### Cycle 1 — propagation pass (web-art-director)
+
+Approved OQ decisions folded into the design files (design\ only, one pass): creative-brief.md — landing CTA "Start negotiating" → /play guest flow; /play budget gains the guest age-acknowledgment step and FIFO/~2.5s-polling waiting spec. route-matrix.md — /play row gains the guest entry state (age acknowledgment → POST /api/age-gate → instant play, no returnTo, DOB check only at /signup), the 403 not-age-gated loop, the FIFO/2.5s-polling-no-counts queue, ungated friend-invite path; /privacy adds the self-attestation disclosure state; room entry is now "session required (account or age-gated guest)"; results cite the 10-minute window; rematch = same partner, roles swapped, both must request, plus a separate re-queue action. component-contracts.md — new AgeGateSheet primitive (guest attestation, 403 re-open); PlayPage and LandingPage table rows updated; tree updated; art-direction server-lane note now specifies POST /api/age-gate as the enforcement point with the teammate's anonymous sign-in untouched. "Proposed API additions" section still verbatim. No application code written.
+
+### Shared module ownership (lead)
+src/age-gate.ts is lead-owned: markAgeAttested/markAgeVerified (Lane B wraps), hasAgeGate (Lane C consumes read-only). In-memory, 12h guest TTL, no schema edits. Lanes must not duplicate or modify this contract.
