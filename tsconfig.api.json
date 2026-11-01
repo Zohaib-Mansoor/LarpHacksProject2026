@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.db.json",
+  "include": ["src/**/*.ts", "packages/contracts/src/**/*.ts", "tests/lobby.test.ts"]
+}
