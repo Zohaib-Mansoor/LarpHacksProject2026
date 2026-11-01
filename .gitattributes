@@ -1,4 +1,6 @@
-/rolecall/** text eol=lf
+/playcall/** text eol=lf
 /package.json text eol=lf
 /.gitignore text eol=lf
 /.gitattributes text eol=lf
+
+/PLAYCALL_CONCEPT.md text eol=lf
