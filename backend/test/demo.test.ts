@@ -9,6 +9,8 @@ import { connectDatabase, type Database } from '../src/db/client.js';
 import * as schema from '../src/db/schema.js';
 import { BRIEF_MS, type RoomSnapshot } from '../src/game.js';
 import type { Config } from '../src/config.js';
+import { builtinScenario, freezeScenario } from '../src/scenario.js';
+import type { AiProvider } from '../src/ai.js';
 
 const origin = 'http://127.0.0.1:4173';
 const config: Config = {
@@ -98,6 +100,82 @@ async function setup() {
 }
 
 describe('one-origin database demo', () => {
+  it('creates genuine generated scenes and allows an explicit disclosed built-in choice', async () => {
+    let calls = 0;
+    const ai: AiProvider = {
+      model: 'mock-gemini',
+      generate: async () => {
+        calls++;
+        return freezeScenario(
+          {
+            title: 'The Harbor Repair',
+            description:
+              'A station needs repairs and an independent contractor has one slot remaining.',
+            amountLabel: 'credits',
+            buyer: { ...builtinScenario.buyer, priceTarget: 400 },
+            seller: { ...builtinScenario.seller, priceTarget: 650 },
+          },
+          'mock-gemini',
+        );
+      },
+      assess: async () => {
+        throw new Error('Not used in text mode.');
+      },
+    };
+    const generatedApp = await buildDemoApp({ db, config, ai });
+    try {
+      const a = await guest();
+      const response = await generatedApp.app.inject({
+        method: 'POST',
+        url: '/api/rooms',
+        headers: a,
+        payload: {},
+      });
+      expect(response.statusCode, response.body).toBe(201);
+      expect(response.json().room.scenario.source).toBe('ai');
+      expect(response.json().room.scenario.title).toBe('The Harbor Repair');
+      const practice = await generatedApp.app.inject({
+        method: 'POST',
+        url: '/api/rooms',
+        headers: a,
+        payload: { scenarioSource: 'builtin' },
+      });
+      expect(practice.statusCode).toBe(201);
+      expect(practice.json().room.scenario.source).toBe('builtin');
+      expect(calls).toBe(1);
+      expect(
+        JSON.stringify((await generatedApp.app.inject('/api/config')).json()),
+      ).not.toContain('apiKey');
+    } finally {
+      await generatedApp.app.close();
+    }
+  });
+  it('returns a real AI failure without substituting a fake scene', async () => {
+    const failing: AiProvider = {
+      model: 'mock-gemini',
+      generate: async () => {
+        throw new Error('provider failure');
+      },
+      assess: async () => {
+        throw new Error('not used');
+      },
+    };
+    const failingApp = await buildDemoApp({ db, config, ai: failing });
+    try {
+      const a = await guest();
+      const response = await failingApp.app.inject({
+        method: 'POST',
+        url: '/api/rooms',
+        headers: a,
+        payload: {},
+      });
+      expect(response.statusCode).toBe(502);
+      expect(response.json().error.code).toBe('GENERATION_FAILED');
+      expect(response.json().room).toBeUndefined();
+    } finally {
+      await failingApp.app.close();
+    }
+  });
   it('serves frontend, disables excluded systems, and never sends HTML for API 404s', async () => {
     expect((await built.app.inject('/')).headers['content-type']).toContain(
       'text/html',

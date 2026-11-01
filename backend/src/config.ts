@@ -11,7 +11,7 @@ export type Config = {
   origins: string[];
   google?: { clientId: string; clientSecret: string };
   livekit?: { url: string; apiKey: string; apiSecret: string };
-  ai?: { apiKey: string; model: string };
+  ai?: { provider?: 'gemini' | 'openai'; apiKey: string; model: string };
   elevenLabsApiKey?: string;
   rtc?: {
     stunUrls: string[];
@@ -35,8 +35,15 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       'BETTER_AUTH_SECRET must be a random secret of at least 32 characters.',
     );
   const production = env.NODE_ENV === 'production';
-  const authUrl = required('BETTER_AUTH_URL');
-  const origins = required('CLIENT_ORIGINS')
+  // Render supplies its public HTTPS URL at runtime, including generated suffixes.
+  const authUrl =
+    env.BETTER_AUTH_URL?.trim() ||
+    env.RENDER_EXTERNAL_URL?.trim() ||
+    required('BETTER_AUTH_URL');
+  const origins = (
+    env.CLIENT_ORIGINS?.trim() ||
+    (env.RENDER_EXTERNAL_URL ? authUrl : required('CLIENT_ORIGINS'))
+  )
     .split(',')
     .map((o) => o.trim());
   for (const origin of [...origins, authUrl]) {
@@ -56,6 +63,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     throw new Error('Set all three LiveKit variables.');
   if (!!env.TURN_URL !== !!env.TURN_SHARED_SECRET)
     throw new Error('Set both TURN_URL and TURN_SHARED_SECRET.');
+  const aiProvider =
+    env.AI_PROVIDER ?? (env.GEMINI_API_KEY ? 'gemini' : 'openai');
+  if (!['gemini', 'openai'].includes(aiProvider))
+    throw new Error('AI_PROVIDER must be gemini or openai.');
   return {
     demoMode: env.DEMO_MODE !== 'false',
     production,
@@ -65,9 +76,22 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     authUrl,
     authSecret,
     origins,
-    ai: env.OPENAI_API_KEY
-      ? { apiKey: env.OPENAI_API_KEY, model: env.OPENAI_MODEL ?? 'gpt-5-mini' }
-      : undefined,
+    ai:
+      aiProvider === 'gemini'
+        ? env.GEMINI_API_KEY
+          ? {
+              provider: 'gemini',
+              apiKey: env.GEMINI_API_KEY,
+              model: env.GEMINI_MODEL ?? 'gemini-3.1-flash-lite',
+            }
+          : undefined
+        : env.OPENAI_API_KEY
+          ? {
+              provider: 'openai',
+              apiKey: env.OPENAI_API_KEY,
+              model: env.OPENAI_MODEL ?? 'gpt-5-mini',
+            }
+          : undefined,
     elevenLabsApiKey: env.ELEVENLABS_API_KEY || undefined,
     rtc: {
       stunUrls: (env.RTC_STUN_URLS ?? 'stun:stun.l.google.com:19302')

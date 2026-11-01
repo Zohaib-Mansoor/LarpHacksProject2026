@@ -10,6 +10,8 @@ confirmed deals, results, and history persist across restarts.
 
 **[Setup and API reference](docs/INTEGRATION.md)**
 
+**[Deploy the frontend and backend together on Render](docs/RENDER.md)**
+
 [Detailed API README](backend/API_README.md) · [Live local OpenAPI](http://127.0.0.1:4173/api/openapi.json)
 
 ```powershell
@@ -21,8 +23,9 @@ npm start
 ```
 
 Open http://127.0.0.1:4173/. Create a room, share the invite, and play in two
-independent browser sessions. Default mode uses text and polling; no audio, LLMs,
-WebSockets, or workers are running.
+independent browser sessions. Default mode uses text and polling; audio,
+WebSockets, and workers are off. Optional Gemini scene generation uses a server-only
+`GEMINI_API_KEY`; the UI also offers explicitly labelled built-in practice.
 
 Checks: `npm run check`, `npm test`, `npm run build`. Browser flow:
 `npm --prefix backend run test:browser` against a running local app.

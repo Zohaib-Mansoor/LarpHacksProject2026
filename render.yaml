@@ -1,0 +1,44 @@
+# yaml-language-server: $schema=https://render.com/schema/render.yaml.json
+# Deploy the whole app from the repository root using New > Blueprint on Render.
+services:
+  - type: web
+    name: playcall
+    runtime: docker
+    branch: codex/backend
+    plan: free
+    region: ohio
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    dockerCommand: sh ./start-render.sh
+    healthCheckPath: /ready
+    autoDeployTrigger: off
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: "10000"
+      - key: DEMO_MODE
+        value: "true"
+      - key: BETTER_AUTH_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: playcall-db
+          property: connectionString
+      - key: AI_PROVIDER
+        value: gemini
+      - key: GEMINI_MODEL
+        value: gemini-3.1-flash-lite
+      - key: GEMINI_API_KEY
+        sync: false
+
+databases:
+  - name: playcall-db
+    plan: free
+    region: ohio
+    postgresMajorVersion: "16"
+    databaseName: rolecall_integrated
+    user: rolecall
+    ipAllowList: []

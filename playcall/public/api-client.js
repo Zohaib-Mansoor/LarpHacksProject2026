@@ -13,7 +13,9 @@ export async function api(
   const response = await fetch(path, {
     method,
     credentials: "same-origin",
-    signal: AbortSignal.timeout(15000),
+    signal: AbortSignal.timeout(
+      path === "/api/rooms" || path.endsWith("/scenario") ? 60000 : 15000,
+    ),
     headers: data === undefined ? {} : { "content-type": "application/json" },
     ...(data === undefined ? {} : { body: JSON.stringify(data) }),
   });
