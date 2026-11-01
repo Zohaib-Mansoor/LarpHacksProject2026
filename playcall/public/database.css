@@ -1,0 +1,75 @@
+.db-art {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 280px;
+  overflow: hidden;
+}
+.db-orbit {
+  font-size: 150px;
+  line-height: 1.2;
+  color: #d3e1ff;
+  text-shadow: 25px 20px 0 #86a9f8;
+}
+.db-terms {
+  display: grid;
+  gap: 16px;
+}
+.db-goals {
+  padding-left: 20px;
+  display: grid;
+  gap: 16px;
+}
+.db-goals small {
+  display: block;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.result-card.stack {
+  gap: 20px;
+}
+.lobby-form > .btn {
+  margin-top: 16px;
+}
+#messages {
+  height: 280px;
+  overflow: auto;
+}
+.db-terms input {
+  width: 100%;
+}
+.result-card {
+  margin-bottom: 20px;
+}
+html[data-reduce-motion="true"] *,
+html[data-reduce-motion="true"] *:before,
+html[data-reduce-motion="true"] *:after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
+@media (max-width: 650px) {
+  .header {
+    height: auto;
+    min-height: 80px;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding-block: 16px;
+  }
+  .header-nav {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .room-grid {
+    display: flex;
+    flex-direction: column;
+  }
+  .room-sidebar {
+    width: 100%;
+  }
+  .header-nav .tag {
+    display: none;
+  }
+}
