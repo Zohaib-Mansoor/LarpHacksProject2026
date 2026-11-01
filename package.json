@@ -16,7 +16,10 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "db:verify": "tsx --env-file-if-exists=.env scripts/verify-schema.ts",
-    "db:typecheck": "tsc --project tsconfig.db.json"
+    "db:typecheck": "tsc --project tsconfig.db.json",
+    "web:dev": "npm --prefix web run dev",
+    "web:build": "npm --prefix web run build",
+    "web:preview": "npm --prefix web run preview"
   },
   "dependencies": {
     "@sinclair/typebox": "^0.34.52",

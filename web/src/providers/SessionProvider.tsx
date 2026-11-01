@@ -1,0 +1,15 @@
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+export interface Me { userId: string; isGuest: boolean }
+const SessionContext = createContext<{ user: Me | null; ready: boolean; refresh: () => Promise<void> }>({ user: null, ready: false, refresh: async () => {} });
+export function SessionProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<Me | null>(null);
+  const [ready, setReady] = useState(false);
+  const refresh = useCallback(async () => {
+    try { const r = await fetch('/api/me'); if (!r.ok) throw new Error('no session'); setUser((await r.json()) as Me); }
+    catch { setUser(null); }
+    finally { setReady(true); }
+  }, []);
+  useEffect(() => { void refresh(); }, [refresh]);
+  return <SessionContext.Provider value={{ user, ready, refresh }}>{children}</SessionContext.Provider>;
+}
+export const useSession = () => useContext(SessionContext);

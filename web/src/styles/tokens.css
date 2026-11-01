@@ -1,0 +1,38 @@
+/* PlayCall design tokens - frozen in design/creative-brief.md. LEAD-OWNED: request changes via message. */
+:root {
+  color-scheme: light;
+  --page: #f6f7fa; --surface: #ffffff;
+  --ink: #15233b; --muted: #5c667a;
+  --line: #dce1eb; --line-strong: #aeb8ca;
+  --self: #2456db; --self-strong: #1e45b0; --self-soft: #edf2ff; --self-action: #2456db; --self-ink: #ffffff;
+  --partner: #aa481c; --partner-bright: #dc7a43; --partner-soft: #fff0e7;
+  --confirm: #236444; --confirm-soft: #eaf6ee;
+  --danger: #b22f3e; --danger-soft: #fff1f2;
+  --receipt-bg: #101b30; --receipt-ink: #eef3fb; --receipt-line: #2c3b57;
+  --shadow-raise: 0 1px 2px rgba(21,35,59,.08);
+  --shadow-float: 0 12px 32px rgba(21,35,59,.16);
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', 'SF Mono', Menlo, monospace;
+  --fs-11: 11px; --fs-12: 12px; --fs-13: 13px; --fs-14: 14px; --fs-16: 16px; --fs-17: 17px; --fs-19: 19px; --fs-24: 24px; --fs-32: 32px;
+  --fs-display: clamp(40px, 6vw, 64px);
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 16px; --sp-4: 24px; --sp-5: 48px;
+  --gutter: 16px; --gutter-md: 28px; --gutter-lg: 40px;
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px; --radius-xl: 20px; --radius-pill: 999px;
+  --dur-0: 0ms; --dur-1: 120ms; --dur-2: 160ms; --dur-3: 230ms;
+  --ease: cubic-bezier(.2,.8,.2,1);
+  --z-base: 0; --z-raised: 10; --z-dock: 20; --z-drawer: 30; --z-overlay: 40; --z-toast: 50;
+  --target: 44px;
+}
+[data-theme='dark'] {
+  color-scheme: dark;
+  --page: #0d1526; --surface: #17223c;
+  --ink: #e9eef8; --muted: #94a0b8;
+  --line: #26334f; --line-strong: #3d4d6e;
+  --self: #7aa2ff; --self-strong: #b3c7ff; --self-soft: #16244a; --self-action: #3b66e0; --self-ink: #ffffff;
+  --partner: #e08a5c; --partner-bright: #f2a37b; --partner-soft: #3a2415;
+  --confirm: #4fae7e; --confirm-soft: #122e20;
+  --danger: #e56471; --danger-soft: #3a1216;
+  --receipt-bg: #f6f7fa; --receipt-ink: #15233b; --receipt-line: #dce1eb;
+  --shadow-raise: 0 1px 2px rgba(0,0,0,.4);
+  --shadow-float: 0 12px 32px rgba(0,0,0,.55);
+}

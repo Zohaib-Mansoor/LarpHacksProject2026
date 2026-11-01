@@ -1,0 +1,50 @@
+@import './tokens.css';
+* { box-sizing: border-box; margin: 0; }
+html, body, #root { height: 100%; }
+body {
+  background: var(--page); color: var(--ink);
+  font-family: var(--font-sans); font-size: var(--fs-16); line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--self); }
+:focus-visible { outline: 2px solid var(--self); outline-offset: 2px; border-radius: var(--radius-sm); }
+.tnum { font-variant-numeric: tabular-nums; }
+.mono { font-family: var(--font-mono); }
+.skip-link { position: absolute; left: -9999px; top: 0; background: var(--surface); padding: var(--sp-2) var(--sp-3); z-index: var(--z-toast); }
+.skip-link:focus { left: var(--sp-2); }
+.topbar { display: flex; align-items: center; justify-content: space-between; min-height: 56px; padding: 0 var(--gutter); border-bottom: 1px solid var(--line); background: var(--surface); }
+.topbar .wordmark { font-weight: 700; font-size: var(--fs-17); color: var(--ink); text-decoration: none; }
+.shell { max-width: 1360px; margin: 0 auto; padding: var(--sp-4) var(--gutter); }
+.btn { min-height: var(--target); min-width: var(--target); display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2);
+  padding: 0 var(--sp-4); border: 1px solid transparent; border-radius: var(--radius-md);
+  font: inherit; font-weight: 600; cursor: pointer; transition: background var(--dur-1) var(--ease), transform var(--dur-1) var(--ease); }
+.btn:active { transform: scale(.98); }
+.btn-primary { background: var(--self-action); color: var(--self-ink); }
+.btn-primary:hover { background: var(--self-strong); }
+.btn-secondary { background: var(--surface); color: var(--ink); border-color: var(--line-strong); }
+.btn-ghost { background: transparent; color: var(--self); }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-lg { min-height: 52px; padding: 0 var(--sp-5); font-size: var(--fs-17); }
+.field { display: grid; gap: var(--sp-1); }
+.field label { font-size: var(--fs-13); color: var(--muted); }
+.field input, .field textarea { min-height: var(--target); padding: var(--sp-2) var(--sp-3); border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md); background: var(--surface); color: var(--ink); font: inherit; font-size: var(--fs-16); width: 100%; }
+.field .error { color: var(--danger); font-size: var(--fs-13); }
+.sheet-backdrop { position: fixed; inset: 0; background: rgba(13,21,38,.48); z-index: var(--z-overlay); display: flex; align-items: flex-end; justify-content: center; }
+@media (min-width: 768px) { .sheet-backdrop { align-items: center; } }
+.sheet { background: var(--surface); color: var(--ink); border-radius: var(--radius-xl) var(--radius-xl) 0 0; padding: var(--sp-4);
+  width: 100%; max-width: 520px; max-height: 85vh; overflow: auto; box-shadow: var(--shadow-float); }
+@media (min-width: 768px) { .sheet { border-radius: var(--radius-xl); } }
+.sheet-title { font-size: var(--fs-19); margin-bottom: var(--sp-3); }
+.drawer-backdrop { position: fixed; inset: 0; background: rgba(13,21,38,.48); z-index: var(--z-drawer); }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(400px, 92vw); background: var(--surface); color: var(--ink);
+  border-left: 1px solid var(--line); box-shadow: var(--shadow-float); z-index: var(--z-drawer); padding: var(--sp-4); overflow: auto; }
+.notice { border: 1px solid var(--line); border-radius: var(--radius-md); padding: var(--sp-3); background: var(--surface); }
+.notice-confirm { background: var(--confirm-soft); border-color: var(--confirm); color: var(--confirm); }
+.notice-danger { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
+.empty-state { text-align: center; color: var(--muted); padding: var(--sp-5) var(--sp-4); }
+.toast-stack { position: fixed; bottom: var(--sp-4); left: 50%; transform: translateX(-50%); z-index: var(--z-toast); display: grid; gap: var(--sp-2); }
+.toast { background: var(--ink); color: var(--page); border-radius: var(--radius-pill); padding: var(--sp-2) var(--sp-4); font-size: var(--fs-14); box-shadow: var(--shadow-float); }
+.receipt { background: var(--receipt-bg); color: var(--receipt-ink); border-radius: var(--radius-lg); padding: var(--sp-4); }
+.receipt .rule { border-top: 1px dashed var(--receipt-line); margin: var(--sp-3) 0; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
