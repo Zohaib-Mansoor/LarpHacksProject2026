@@ -17,12 +17,14 @@ export default function Terms() {
 
       <h2>Rounds</h2>
       <p>
-        Each round matches two anonymous strangers for five minutes of text negotiation. You appear to
-        the other player only as a server-assigned alias — never as your account name.
+        Each round connects two anonymous strangers for a five-minute voice-call negotiation with live
+        captions and shared deal terms. You appear to the other caller only as a server-assigned alias —
+        never as your account name.
       </p>
       <p>
-        The other player sees everything you type in a round. Do not share personal information — real
-        names, contact details, or anything you would not hand a stranger.
+        The other caller hears what you say when unmuted and sees any captions or proposals you send. Do
+        not share personal information — real names, contact details, or anything you would not tell a
+        stranger.
       </p>
 
       <h2>Conduct</h2>
@@ -38,8 +40,11 @@ export default function Terms() {
         page.
       </p>
 
-      <h2>Text only</h2>
-      <p>PlayCall is text-only. There is no video and no voice calling today.</p>
+      <h2>Voice-first, zero video</h2>
+      <p>
+        PlayCall is an audio-call negotiation game with optional live captions and side-channel notes.
+        Cameras and video calling are disabled everywhere.
+      </p>
 
       <h2>The service</h2>
       <p>

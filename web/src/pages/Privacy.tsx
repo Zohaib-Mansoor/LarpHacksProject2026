@@ -5,8 +5,9 @@ export default function Privacy() {
   return (
     <LegalDocument title="Privacy" updated="November 1, 2026">
       <p>
-        PlayCall is a text-only negotiation game: two anonymous strangers are matched for a five-minute
-        round. This page describes what the service does with your information today — nothing more.
+        PlayCall is an anonymous voice-call negotiation game: two strangers connect on a five-minute
+        audio call with live captions and zero cameras. This page describes what the service does with your
+        information today — nothing more.
       </p>
 
       <h2>Playing as a guest</h2>
@@ -36,10 +37,12 @@ export default function Privacy() {
         anonymous alias.
       </p>
 
-      <h2>No voice, no video</h2>
+      <h2>Live voice audio — zero cameras</h2>
       <p>
-        PlayCall has no voice or video calling today. No audio or video is captured, transmitted, or
-        stored. If voice is ever added, this page will say so.
+        Multiplayer rounds stream peer-to-peer WebRTC microphone audio directly between the two callers
+        after transient signaling, and solo sparring calls use your browser&apos;s built-in speech
+        recognition and speech synthesis. PlayCall never records or stores raw audio files, and camera
+        access is blocked at the HTTP policy level (<code>Permissions-Policy: camera=()</code>).
       </p>
 
       <h2>Your controls</h2>

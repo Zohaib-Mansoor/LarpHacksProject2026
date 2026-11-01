@@ -1,7 +1,5 @@
-import { Link } from 'react-router-dom';
+import { PagePlaceholder } from '../primitives/PagePlaceholder';
+
 export default function NotFound() {
-  return <main className="shell" style={{ textAlign: 'center', paddingTop: 'var(--sp-5)' }}>
-    <h1 style={{ fontSize: 'var(--fs-32)' }}>Page not found</h1>
-    <p style={{ marginTop: 'var(--sp-3)' }}><Link to="/">Back to PlayCall</Link></p>
-  </main>;
+  return <PagePlaceholder title="Page not found" line="That channel does not exist." cta={{ to: '/', label: 'Back to PlayCall' }} />;
 }

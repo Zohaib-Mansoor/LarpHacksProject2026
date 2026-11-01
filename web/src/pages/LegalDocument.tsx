@@ -17,9 +17,12 @@ const eyebrowStyle: CSSProperties = {
 };
 
 const titleStyle: CSSProperties = {
-  fontSize: 'var(--fs-32)',
-  fontWeight: 700,
-  lineHeight: 1.12,
+  fontFamily: 'var(--font-display)',
+  fontStretch: '78%',
+  textTransform: 'uppercase',
+  fontSize: 'clamp(56px, 9vw, 112px)',
+  fontWeight: 800,
+  lineHeight: 0.88,
   margin: '0 0 var(--sp-4)',
   paddingBottom: 'var(--sp-4)',
   borderBottom: '1px solid var(--line)',

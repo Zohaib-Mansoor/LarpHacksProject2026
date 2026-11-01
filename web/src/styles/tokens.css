@@ -1,38 +1,110 @@
-/* PlayCall design tokens - frozen in design/creative-brief.md. LEAD-OWNED: request changes via message. */
+/* PlayCall design tokens — "Blue Channel"
+   Wise-inspired sky-azure brand field + crisp white product surfaces +
+   OrangeYouGlad kinetic tangerine partner accents. */
 :root {
   color-scheme: light;
-  --page: #f6f7fa; --surface: #ffffff;
-  --ink: #15233b; --muted: #5c667a;
-  --line: #dce1eb; --line-strong: #aeb8ca;
-  --self: #2456db; --self-strong: #1e45b0; --self-soft: #edf2ff; --self-action: #2456db; --self-ink: #ffffff;
-  --partner: #aa481c; --partner-bright: #dc7a43; --partner-soft: #fff0e7;
-  --confirm: #236444; --confirm-soft: #eaf6ee;
-  --danger: #b22f3e; --danger-soft: #fff1f2;
-  --receipt-bg: #101b30; --receipt-ink: #eef3fb; --receipt-line: #2c3b57;
-  --shadow-raise: 0 1px 2px rgba(21,35,59,.08);
-  --shadow-float: 0 12px 32px rgba(21,35,59,.16);
-  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --page: #f6f9fd;
+  --surface: #ffffff;
+  --surface-subtle: #edf3fb;
+  --surface-hover: #e3ecf9;
+  --ink: #051738;
+  --muted: #516280;
+  --line: #dbe5f3;
+  --line-strong: #b0c2de;
+
+  /* Wise-lime reimagined in luminous sky-azure blue */
+  --brand: #87c8ff;
+  --brand-deep: #55abff;
+  --brand-soft: #dff0ff;
+  --brand-ink: #041638;
+  --navy: #041638;
+  --navy-2: #0a2558;
+  --sky: #87c8ff;
+  --electric: #1456ff;
+
+  /* Two-channel logic: Blue = You, Warm Tangerine Orange = Partner */
+  --self: #1456ff;
+  --self-strong: #0a3ec8;
+  --self-soft: #e3eeff;
+  --self-action: #041638;
+  --self-ink: #87c8ff;
+
+  --partner: #ff5c16;
+  --partner-bright: #ff8547;
+  --partner-soft: #fff0e8;
+
+  --confirm: #0f7a4c;
+  --confirm-soft: #dff7ec;
+  --danger: #c62839;
+  --danger-soft: #ffeef0;
+
+  --receipt-bg: #041638;
+  --receipt-ink: #eaf3ff;
+  --receipt-line: #1f3968;
+
+  --shadow-raise: 0 1px 3px rgba(5, 23, 56, 0.06), 0 4px 12px rgba(5, 23, 56, 0.04);
+  --shadow-card: 0 12px 32px -12px rgba(5, 23, 56, 0.12), 0 0 0 1px rgba(5, 23, 56, 0.06);
+  --shadow-float: 0 28px 68px -16px rgba(4, 22, 56, 0.28);
+
+  --font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Bricolage Grotesque Variable', 'Inter Variable', system-ui, sans-serif;
   --font-mono: ui-monospace, 'Cascadia Mono', 'SF Mono', Menlo, monospace;
-  --fs-11: 11px; --fs-12: 12px; --fs-13: 13px; --fs-14: 14px; --fs-16: 16px; --fs-17: 17px; --fs-19: 19px; --fs-24: 24px; --fs-32: 32px;
-  --fs-display: clamp(40px, 6vw, 64px);
-  --sp-1: 4px; --sp-2: 8px; --sp-3: 16px; --sp-4: 24px; --sp-5: 48px;
+
+  --fs-11: 11px; --fs-12: 12px; --fs-13: 13px; --fs-14: 14px; --fs-16: 16px;
+  --fs-17: 17px; --fs-19: 19px; --fs-24: 24px; --fs-32: 32px;
+  --fs-display: clamp(50px, 9.2vw, 146px);
+  --fs-mega: clamp(72px, 18vw, 290px);
+
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 16px; --sp-4: 24px; --sp-5: 48px; --sp-6: 96px;
   --gutter: 16px; --gutter-md: 28px; --gutter-lg: 40px;
-  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px; --radius-xl: 20px; --radius-pill: 999px;
-  --dur-0: 0ms; --dur-1: 120ms; --dur-2: 160ms; --dur-3: 230ms;
-  --ease: cubic-bezier(.2,.8,.2,1);
+  --radius-sm: 8px; --radius-md: 14px; --radius-lg: 20px; --radius-xl: 28px; --radius-pill: 999px;
+  --dur-0: 0ms; --dur-1: 120ms; --dur-2: 180ms; --dur-3: 260ms;
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  --ease-out-expo: cubic-bezier(.16, 1, .3, 1);
   --z-base: 0; --z-raised: 10; --z-dock: 20; --z-drawer: 30; --z-overlay: 40; --z-toast: 50;
   --target: 44px;
 }
+
 [data-theme='dark'] {
   color-scheme: dark;
-  --page: #0d1526; --surface: #17223c;
-  --ink: #e9eef8; --muted: #94a0b8;
-  --line: #26334f; --line-strong: #3d4d6e;
-  --self: #7aa2ff; --self-strong: #b3c7ff; --self-soft: #16244a; --self-action: #3b66e0; --self-ink: #ffffff;
-  --partner: #e08a5c; --partner-bright: #f2a37b; --partner-soft: #3a2415;
-  --confirm: #4fae7e; --confirm-soft: #122e20;
-  --danger: #e56471; --danger-soft: #3a1216;
-  --receipt-bg: #f6f7fa; --receipt-ink: #15233b; --receipt-line: #dce1eb;
-  --shadow-raise: 0 1px 2px rgba(0,0,0,.4);
-  --shadow-float: 0 12px 32px rgba(0,0,0,.55);
+  --page: #030d21;
+  --surface: #091938;
+  --surface-subtle: #0f244d;
+  --surface-hover: #153063;
+  --ink: #eaf3ff;
+  --muted: #8ea5ca;
+  --line: #172e58;
+  --line-strong: #2c4a80;
+
+  --brand: #0c2b66;
+  --brand-deep: #133b86;
+  --brand-soft: #0b214d;
+  --brand-ink: #b8dcff;
+  --navy: #87c8ff;
+  --navy-2: #bde0ff;
+  --sky: #87c8ff;
+  --electric: #5e9aff;
+
+  --self: #79b4ff;
+  --self-strong: #c2dfff;
+  --self-soft: #102857;
+  --self-action: #87c8ff;
+  --self-ink: #041638;
+
+  --partner: #ff7a3d;
+  --partner-bright: #ffa173;
+  --partner-soft: #391b0c;
+
+  --confirm: #47d198;
+  --confirm-soft: #0c2f21;
+  --danger: #ff6b7c;
+  --danger-soft: #3a1018;
+
+  --receipt-bg: #eaf3ff;
+  --receipt-ink: #041638;
+  --receipt-line: #bfd3ee;
+
+  --shadow-raise: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-card: 0 16px 36px -12px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(135, 200, 255, 0.1);
+  --shadow-float: 0 28px 68px -16px rgba(0, 0, 0, 0.72);
 }
