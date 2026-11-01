@@ -8,7 +8,7 @@ import type { GameStore } from './store.js';
 
 export function createAuth(db: Database, config: Config, store: GameStore) {
   return betterAuth({
-    appName: 'RoleCall',
+    appName: 'PlayCall',
     baseURL: config.authUrl,
     basePath: '/api/auth',
     secret: config.authSecret,
@@ -17,7 +17,11 @@ export function createAuth(db: Database, config: Config, store: GameStore) {
     session: { expiresIn: 60 * 60 * 24 * 7, cookieCache: { enabled: false } },
     advanced: { useSecureCookies: config.production },
     socialProviders: config.google ? { google: config.google } : {},
-    emailAndPassword: { enabled: true, minPasswordLength: 12 },
+    emailAndPassword: {
+      enabled: true,
+      minPasswordLength: 12,
+      requireEmailVerification: false,
+    },
     plugins: [
       anonymous({
         disableDeleteAnonymousUser: true,

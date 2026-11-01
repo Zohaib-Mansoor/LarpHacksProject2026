@@ -1,6 +1,6 @@
-import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { ThemeProvider } from './providers/ThemeProvider';
-import { SessionProvider } from './providers/SessionProvider';
+import { SessionProvider, useSession } from './providers/SessionProvider';
 import { ToastProvider } from './providers/ToastProvider';
 import { TopBar } from './TopBar';
 import { SmoothScroll } from './motion/SmoothScroll';
@@ -20,6 +20,13 @@ import NotFound from './pages/NotFound';
 import './styles/app.css';
 import { GameConfigProvider } from './providers/GameConfigProvider';
 
+function RequireAccount({children}: {children: React.ReactNode}) {
+  const {user, ready} = useSession();
+  if (!ready) return <p role="status">Loading your account…</p>;
+  if (!user || user.isGuest) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
+
 function AnimatedRoutes() {
   const location = useLocation();
   return (
@@ -28,13 +35,13 @@ function AnimatedRoutes() {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
-        <Route path="/account" element={<Account />} />
+        <Route path="/account" element={<RequireAccount><Account /></RequireAccount>} />
         <Route path="/leaderboard" element={<Leaderboard />} />
-        <Route path="/play" element={<Play />} />
-        <Route path="/setup" element={<Setup />} />
+        <Route path="/play" element={<RequireAccount><Play /></RequireAccount>} />
+        <Route path="/setup" element={<RequireAccount><Setup /></RequireAccount>} />
         <Route path="/demo" element={<Demo />} />
-        <Route path="/room/:code" element={<Room />} />
-        <Route path="/results/:code" element={<Results />} />
+        <Route path="/room/:code" element={<RequireAccount><Room /></RequireAccount>} />
+        <Route path="/results/:code" element={<RequireAccount><Results /></RequireAccount>} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="*" element={<NotFound />} />

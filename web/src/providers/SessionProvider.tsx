@@ -5,7 +5,7 @@ import {
   useEffect,
   useState,
 } from "react";
-import { ensureSession, syncAccount } from "../lib/api";
+import { syncAccount } from "../lib/api";
 export interface Me {
   userId: string;
   isGuest: boolean;
@@ -20,12 +20,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const refresh = useCallback(async () => {
     try {
-      await ensureSession();
-      await syncAccount();
       const r = await fetch("/api/me");
       if (!r.ok) throw new Error("no session");
       const me = await r.json();
-      setUser({ userId: "current-session", isGuest: !!me.guest });
+      if (me.guest) throw new Error("registered account required");
+      setUser({ userId: me.userId, isGuest: false });
+      await syncAccount();
     } catch {
       setUser(null);
     } finally {

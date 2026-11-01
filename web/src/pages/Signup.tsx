@@ -39,11 +39,10 @@ export default function Signup() {
         <p className="kicker mono">CREATE CALLER ACCOUNT</p>
         <h1 className="display auth-title">Keep your progress</h1>
         <p className="auth-sub">
-          Your account details stay private. Rooms use fictional scenario
-          aliases.
+          Your email stays private. Other players see your username.
         </p>
         <label className="flow-input-block">
-          Private name
+          Username
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -85,8 +84,7 @@ export default function Signup() {
           </span>
         </label>
         <p className="auth-foot">
-          Use at least 12 characters. Password recovery and email verification
-          need mail-provider setup.
+          Use at least 12 characters. Your account and password hash are stored securely; email verification is not required.
         </p>
         {error && (
           <p role="alert" className="notice notice-danger">

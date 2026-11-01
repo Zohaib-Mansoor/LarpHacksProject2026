@@ -1,6 +1,6 @@
 import { FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ensureSession, syncAccount } from "../lib/api";
+import { syncAccount } from "../lib/api";
 import { useSession } from "../providers/SessionProvider";
 export default function Login() {
   const [email, setEmail] = useState(""),
@@ -65,16 +65,6 @@ export default function Login() {
         )}
         <button className="wise-cta-wide" disabled={busy}>
           Sign in
-        </button>
-        <button
-          className="btn btn-secondary"
-          type="button"
-          onClick={async () => {
-            await ensureSession();
-            navigate("/play");
-          }}
-        >
-          Continue as guest
         </button>
         <p className="auth-foot">
           New here? <Link to="/signup">Create an account</Link>

@@ -1,6 +1,7 @@
 import 'dotenv/config';
 
 export type Config = {
+  requireAccount?: boolean;
   demoMode?: boolean;
   production: boolean;
   host: string;
@@ -68,6 +69,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   if (!['gemini', 'openai'].includes(aiProvider))
     throw new Error('AI_PROVIDER must be gemini or openai.');
   return {
+    requireAccount: env.REQUIRE_ACCOUNT !== 'false',
     demoMode: env.DEMO_MODE !== 'false',
     production,
     host: env.HOST ?? '127.0.0.1',

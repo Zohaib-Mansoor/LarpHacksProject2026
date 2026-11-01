@@ -96,9 +96,24 @@ export async function buildDemoApp(options: {
       headers: fromNodeHeaders(request.headers),
     });
     if (!session) throw new GameError('UNAUTHENTICATED', 'Sign in first.', 401);
+    if (config.requireAccount && session.user.isAnonymous)
+      throw new GameError(
+        'ACCOUNT_REQUIRED',
+        'Sign in with a registered account.',
+        401,
+      );
     return session.user;
   };
   app.addHook('onRequest', async (request, reply) => {
+    if (
+      config.requireAccount &&
+      request.url.split('?')[0] === '/api/auth/sign-in/anonymous'
+    )
+      throw new GameError(
+        'ACCOUNT_REQUIRED',
+        'Create an account or sign in to play.',
+        403,
+      );
     if (request.url.startsWith('/api/'))
       reply.header('cache-control', 'no-store');
     if (
@@ -176,6 +191,7 @@ export async function buildDemoApp(options: {
     }
   });
   app.get('/api/config', async () => ({
+    requireAccount: !!config.requireAccount,
     mode: 'database-text',
     realtimeVoice: true,
     matchmaking: true,
@@ -197,7 +213,7 @@ export async function buildDemoApp(options: {
   }));
   app.get('/api/me', async (request) => {
     const user = await principal(request);
-    return { authenticated: true, guest: !!user.isAnonymous };
+    return { authenticated: true, guest: !!user.isAnonymous, userId: user.id };
   });
   app.get('/api/me/settings', async (request) => {
     const user = await principal(request);
@@ -206,7 +222,7 @@ export async function buildDemoApp(options: {
       .from(userSettings)
       .where(eq(userSettings.userId, user.id));
     return {
-      displayName: saved?.displayName ?? 'Negotiator',
+      displayName: saved?.displayName ?? user.name,
       theme: saved?.theme ?? 'system',
       captions: saved?.captions ?? true,
       reducedMotion: saved?.reducedMotion ?? false,

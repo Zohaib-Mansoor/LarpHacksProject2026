@@ -216,15 +216,9 @@ let sessionPromise: Promise<void> | undefined;
 export function ensureSession(): Promise<void> {
   return (sessionPromise ??= (async () => {
     const me = await fetch("/api/me", { credentials: "same-origin" });
-    if (me.status === 401) {
-      const created = await fetch("/api/auth/sign-in/anonymous", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
-        body: "{}",
-      });
-      if (!created.ok) throw new Error("Unable to create guest session.");
-    } else if (!me.ok) throw new Error("Unable to connect to your session.");
+    if (!me.ok) throw new Error("Please sign in with a registered account.");
+    const account = await me.json();
+    if (account.guest) throw new Error("Please sign in with a registered account.");
   })().catch((error) => {
     sessionPromise = undefined;
     throw error;
