@@ -765,3 +765,203 @@
 .dock-btn.is-hangup:hover {
   background: #ef3b2d;
 }
+
+/* Immersive Real-Time VC Stage Additions */
+.vc-status-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.vc-live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-subtle);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.vc-live-pill .vc-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--partner);
+}
+
+.vc-live-pill.is-connected {
+  background: var(--confirm-soft);
+  border-color: color-mix(in srgb, var(--confirm) 30%, transparent);
+  color: var(--confirm);
+}
+
+.vc-live-pill.is-connected .vc-dot {
+  background: var(--confirm);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--confirm) 22%, transparent);
+}
+
+.vc-room-chip {
+  padding: 5px 11px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: background-color 0.18s var(--ease);
+}
+
+.vc-room-chip:hover {
+  background: var(--surface-subtle);
+}
+
+.vc-unlock-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  border-radius: 20px;
+  background: var(--self-soft);
+  border: 1.5px solid color-mix(in srgb, var(--electric) 32%, transparent);
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.greenroom-mic-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 14px 18px;
+  margin: 18px 0;
+  border-radius: 20px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--line);
+}
+
+.waveform.is-compact {
+  width: 170px;
+  height: 34px;
+  padding: 4px 10px;
+  background: var(--surface);
+}
+
+.call-stage-tiles.is-immersive .caller-tile {
+  min-height: 320px;
+  padding: 24px 26px;
+}
+
+.caller-hero-visual {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+  padding: 10px 0 4px;
+}
+
+.caller-orb.is-lg {
+  width: 96px;
+  height: 96px;
+  font-size: 32px;
+}
+
+.caller-orb.is-lg.is-pulsing::before {
+  content: '';
+  position: absolute;
+  inset: -14px;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--electric) 45%, transparent);
+  animation: caller-halo 1.4s ease-out 0.25s infinite;
+  pointer-events: none;
+}
+
+.caller-orb.is-lg.is-them.is-pulsing::before {
+  border-color: color-mix(in srgb, var(--partner) 45%, transparent);
+}
+
+.caller-identity.is-centered strong {
+  font-size: 24px;
+}
+
+.waveform.is-wide {
+  height: 54px;
+  gap: 5px;
+  padding: 8px 16px;
+}
+
+.waveform.is-wide i {
+  max-width: 6px;
+}
+
+.vc-caption-box {
+  padding: 12px 15px;
+  border-radius: 18px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--line);
+  min-height: 64px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  transition: border-color 0.2s var(--ease), background-color 0.2s var(--ease);
+}
+
+.vc-caption-box.is-you.is-active {
+  background: var(--self-soft);
+  border-color: color-mix(in srgb, var(--electric) 35%, transparent);
+}
+
+.vc-caption-box.is-them.is-active {
+  background: var(--partner-soft);
+  border-color: color-mix(in srgb, var(--partner) 35%, transparent);
+}
+
+.vc-caption-tag {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+
+.vc-caption-box p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.vc-bottom-grid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: 0.95fr 1.45fr;
+  gap: 16px;
+  align-items: stretch;
+}
+
+@media (max-width: 860px) {
+  .vc-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.vc-deal-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}

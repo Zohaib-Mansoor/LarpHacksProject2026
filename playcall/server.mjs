@@ -31,11 +31,44 @@ export function createApp(env = process.env) {
   const store = new GameStore({ voiceReady });
   const limits = new Map();
 
-  // Stranger FIFO queue & active sparring bots & opt-in session standings & WebRTC call signals
+  // Stranger FIFO queue, active sparring bots, opt-in standings, WebRTC signals & real-time SSE streams
   let waitingMatch = null; // { code }
   const bots = new Map();  // code -> bot state
   const callSignals = new Map(); // code -> { seq, items: [{ id, from, signal }] }
+  const roomStreams = new Map(); // code -> Set<{ res, role, token }>
   const standings = new Map(); // callsign -> { callsign, rounds, deals, points, best, updatedAt }
+
+  const writeSse = (res, event, payload) => {
+    try {
+      res.write(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`);
+    } catch {
+      // Closed socket cleaned up on 'close'
+    }
+  };
+
+  const emitPeer = (code, fromRole, event, payload) => {
+    const subs = roomStreams.get(String(code || '').toUpperCase());
+    if (!subs) return;
+    for (const sub of subs) {
+      if (sub.role !== fromRole) writeSse(sub.res, event, payload);
+    }
+  };
+
+  const broadcastRoom = (code) => {
+    const upper = String(code || '').toUpperCase();
+    const subs = roomStreams.get(upper);
+    const room = store.rooms.get(upper);
+    if (!subs || !room) return;
+    const isSparring = bots.has(upper);
+    for (const sub of subs) {
+      const player = room.players.find(p => p.token === sub.token);
+      if (player) {
+        try {
+          writeSse(sub.res, 'sync', { sparring: isSparring, ...store.view(room, player) });
+        } catch {}
+      }
+    }
+  };
 
   const recordStanding = (callsign, points, confirmed) => {
     const clean = String(callsign || '').trim().slice(0, 28);
@@ -65,7 +98,8 @@ export function createApp(env = process.env) {
     try {
       if (room.phase === 'prep' && !botPlayer.ready) {
         store.action(code, bot.token, { type: 'ready' });
-        bot.nextActAt = now + 1400;
+        bot.nextActAt = now + 700;
+        broadcastRoom(code);
         return;
       }
 
@@ -77,7 +111,8 @@ export function createApp(env = process.env) {
             ? 'Hey Alex — glad we connected. Our investor showcase is at month 6 and our target cap is around $5.00M. What delivery structure works for Aster?'
             : 'Hi Morgan — good to meet you. Before I send terms, do you need the full satellite at month 6, or would a live month-6 demo plus full delivery at month 8 cover your showcase?';
           store.action(code, bot.token, { type: 'message', text: opener });
-          bot.nextActAt = now + 1200;
+          bot.nextActAt = now + 900;
+          broadcastRoom(code);
           return;
         }
 
@@ -118,7 +153,8 @@ export function createApp(env = process.env) {
             }
           }
           bot.lastSeenMsgId = room.messages.length;
-          bot.nextActAt = now + 1200;
+          bot.nextActAt = now + 900;
+          broadcastRoom(code);
           return;
         }
 
@@ -154,7 +190,8 @@ export function createApp(env = process.env) {
           }
           bot.chatTurns += 1;
           bot.lastSeenMsgId = room.messages.length;
-          bot.nextActAt = now + 1200;
+          bot.nextActAt = now + 900;
+          broadcastRoom(code);
           return;
         }
       }
@@ -164,17 +201,22 @@ export function createApp(env = process.env) {
         const ok = botPlayer.role === 'morgan'
           ? room.deal.package !== 'full-8' && room.deal.price <= 550
           : room.deal.package !== 'full-6' && room.deal.price >= 500;
-        if (ok) store.action(code, bot.token, { type: 'confirm', revision: room.revision });
+        if (ok) {
+          store.action(code, bot.token, { type: 'confirm', revision: room.revision });
+          broadcastRoom(code);
+        }
       }
 
       if (room.phase === 'complete') {
         if (humanPlayer.reveal && !botPlayer.reveal) {
           store.action(code, bot.token, { type: 'reveal', allow: true });
+          broadcastRoom(code);
         }
         if (humanPlayer.rematch && !botPlayer.rematch) {
           bot.counters = 0; bot.chatTurns = 0; bot.handledRev = 0;
           store.action(code, bot.token, { type: 'rematch' });
-          bot.nextActAt = now + 1200;
+          bot.nextActAt = now + 800;
+          broadcastRoom(code);
         }
       }
     } catch {
@@ -184,13 +226,19 @@ export function createApp(env = process.env) {
 
   const botTicker = setInterval(() => {
     for (const code of bots.keys()) stepBot(code);
-  }, 900);
+  }, 450);
   botTicker.unref();
 
   const cleanup = setInterval(() => {
     store.sweep();
     for (const code of bots.keys()) if (!store.rooms.has(code)) bots.delete(code);
     for (const code of callSignals.keys()) if (!store.rooms.has(code)) callSignals.delete(code);
+    for (const [code, subs] of roomStreams) {
+      if (!store.rooms.has(code)) {
+        for (const s of subs) { try { s.res.end(); } catch {} }
+        roomStreams.delete(code);
+      }
+    }
     if (waitingMatch && !store.rooms.has(waitingMatch.code)) waitingMatch = null;
     for (const [ip, r] of limits) if (Date.now() - r.start > 60000) limits.delete(ip);
   }, 15000);
@@ -266,7 +314,7 @@ export function createApp(env = process.env) {
       const ip = req.socket.remoteAddress;
       const now = Date.now();
       if (!limits.has(ip) || now - limits.get(ip).start > 60000) limits.set(ip, { start: now, count: 0 });
-      if (++limits.get(ip).count > 600) return send(429, { error: 'Too many requests. Please wait a minute.' });
+      if (++limits.get(ip).count > 3600) return send(429, { error: 'Too many requests. Please wait a minute.' });
 
       if (url.pathname === '/api/config' && req.method === 'GET') {
         return send(200, { voiceReady, relayProvider: env.TURN_PROVIDER || null, relayRetention: env.TURN_RETENTION || null, transcription: false });
@@ -288,13 +336,17 @@ export function createApp(env = process.env) {
       if (req.method === 'POST') {
         if (!req.headers['content-type']?.startsWith('application/json')) return send(415, { error: 'Send JSON.' });
         let size = 0, chunks = [];
-        for await (const chunk of req) { size += chunk.length; if (size > 32768) throw new GameError('Request too large.', 413); chunks.push(chunk); }
+        for await (const chunk of req) { size += chunk.length; if (size > 65536) throw new GameError('Request too large.', 413); chunks.push(chunk); }
         try { data = JSON.parse(Buffer.concat(chunks).toString()); } catch { throw new GameError('Invalid JSON.'); }
         if (!data || typeof data !== 'object' || Array.isArray(data)) throw new GameError('Send a JSON object.');
       }
 
       if (url.pathname === '/api/rooms' && req.method === 'POST') return send(201, store.create(data));
-      if (url.pathname === '/api/join' && req.method === 'POST') return send(200, store.join(data));
+      if (url.pathname === '/api/join' && req.method === 'POST') {
+        const joined = store.join(data);
+        broadcastRoom(joined.code);
+        return send(200, joined);
+      }
 
       // Instant FIFO Stranger Matchmaking
       if (url.pathname === '/api/match' && req.method === 'POST') {
@@ -303,6 +355,7 @@ export function createApp(env = process.env) {
           waitingMatch = null;
           if (queuedRoom && queuedRoom.phase === 'waiting' && queuedRoom.players.length === 1) {
             const joined = store.join({ code: queuedRoom.code, consent: data.consent === true });
+            broadcastRoom(queuedRoom.code);
             return send(200, { matched: true, ...joined });
           }
         }
@@ -348,10 +401,59 @@ export function createApp(env = process.env) {
         return send(200, { entries });
       }
 
-      const token = req.headers.authorization?.replace(/^Bearer /, '');
+      const token = req.headers.authorization?.replace(/^Bearer /, '') || url.searchParams.get('token') || '';
       const code = url.searchParams.get('code');
 
-      // Direct WebRTC audio call signaling mailbox for two-player live voice calls
+      // Real-time Server-Sent Events stream for instant VC signaling, live captions, audio fallback & zero-lag sync
+      if (url.pathname === '/api/call-stream' && req.method === 'GET') {
+        const { room, player } = store.auth(code, token);
+        req.socket.setNoDelay(true);
+        req.setTimeout(0);
+        res.setTimeout(0);
+        res.writeHead(200, {
+          ...headers,
+          'Content-Type': 'text/event-stream; charset=utf-8',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Connection': 'keep-alive',
+          'X-Accel-Buffering': 'no',
+        });
+
+        let subs = roomStreams.get(room.code);
+        if (!subs) { subs = new Set(); roomStreams.set(room.code, subs); }
+        const entry = { res, role: player.role, token };
+        subs.add(entry);
+
+        const peerOnline = [...subs].some(s => s.role !== player.role) || bots.has(room.code);
+        writeSse(res, 'hello', { role: player.role, peerOnline, sparring: bots.has(room.code) });
+        writeSse(res, 'sync', { sparring: bots.has(room.code), ...store.view(room, player) });
+        emitPeer(room.code, player.role, 'peer-presence', { online: true, role: player.role });
+
+        // Replay any buffered WebRTC signals the caller hasn't seen yet
+        const box = callSignals.get(room.code);
+        if (box) {
+          for (const item of box.items) {
+            if (item.from !== player.role) writeSse(res, 'signal', item);
+          }
+        }
+
+        const keepAlive = setInterval(() => {
+          try { res.write(':keepalive\n\n'); } catch {}
+        }, 12000);
+        keepAlive.unref();
+
+        req.on('close', () => {
+          clearInterval(keepAlive);
+          const cur = roomStreams.get(room.code);
+          if (cur) {
+            cur.delete(entry);
+            if (cur.size === 0) roomStreams.delete(room.code);
+            else emitPeer(room.code, player.role, 'peer-presence', { online: [...cur].some(s => s.role === player.role), role: player.role });
+          }
+        });
+        return;
+      }
+
+      // Direct WebRTC audio call signaling mailbox + instant SSE push
       if (url.pathname === '/api/call-signal' && req.method === 'GET') {
         const { room, player } = store.auth(code, token);
         const after = Number(url.searchParams.get('after') || 0);
@@ -361,13 +463,40 @@ export function createApp(env = process.env) {
       }
       if (url.pathname === '/api/call-signal' && req.method === 'POST') {
         const { room, player } = store.auth(data.code, token);
-        if (!['prep', 'talk', 'finalize'].includes(room.phase)) throw new GameError('Call is not active.', 409);
+        if (!['waiting', 'prep', 'talk', 'finalize'].includes(room.phase)) throw new GameError('Call is not active.', 409);
         let box = callSignals.get(room.code);
         if (!box) { box = { seq: 0, items: [] }; callSignals.set(room.code, box); }
         box.seq += 1;
-        box.items.push({ id: box.seq, from: player.role, signal: data.signal });
-        if (box.items.length > 160) box.items.splice(0, box.items.length - 160);
+        const item = { id: box.seq, from: player.role, signal: data.signal };
+        box.items.push(item);
+        if (box.items.length > 200) box.items.splice(0, box.items.length - 200);
+        emitPeer(room.code, player.role, 'signal', item);
         return send(200, { ok: true, id: box.seq });
+      }
+
+      // Real-time voice activity & live word-by-word captions push
+      if (url.pathname === '/api/call-telemetry' && req.method === 'POST') {
+        const { room, player } = store.auth(data.code, token);
+        emitPeer(room.code, player.role, 'telemetry', {
+          from: player.role,
+          speaking: Boolean(data.speaking),
+          muted: Boolean(data.muted),
+          interim: typeof data.interim === 'string' ? data.interim.slice(0, 260) : '',
+        });
+        return send(200, { ok: true });
+      }
+
+      // Ephemeral in-memory live PCM audio relay fallback when campus/NAT blocks P2P UDP
+      if (url.pathname === '/api/call-audio' && req.method === 'POST') {
+        const { room, player } = store.auth(data.code, token);
+        if (['prep', 'talk', 'finalize'].includes(room.phase) && typeof data.pcm === 'string' && data.pcm.length <= 24000) {
+          emitPeer(room.code, player.role, 'audio', {
+            from: player.role,
+            rate: Number(data.rate) || 16000,
+            pcm: data.pcm,
+          });
+        }
+        return send(200, { ok: true });
       }
 
       if (url.pathname === '/api/room' && req.method === 'GET') {
@@ -383,8 +512,9 @@ export function createApp(env = process.env) {
         const upper = String(data.code || '').toUpperCase();
         if (bots.has(upper)) {
           const b = bots.get(upper);
-          b.nextActAt = Date.now() + 950;
+          b.nextActAt = Date.now() + 650;
         }
+        broadcastRoom(upper);
         return send(200, { sparring: bots.has(upper), ...out });
       }
       if (url.pathname === '/api/relay' && req.method === 'GET') {
