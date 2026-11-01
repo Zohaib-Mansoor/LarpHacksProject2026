@@ -13,6 +13,7 @@ COPY backend/package.json backend/package-lock.json ./
 RUN npm ci --omit=dev --omit=optional && npm cache clean --force
 COPY --from=build /app/backend/dist ./dist
 COPY backend/drizzle ./drizzle
+COPY backend/scripts/start-render.sh ./start-render.sh
 COPY playcall/public /app/playcall/public
 USER node
 EXPOSE 4173

@@ -10,7 +10,9 @@ rooms, negotiation, chat, saved results, and history.
 **Public types:** [client/contracts.ts](client/contracts.ts) — use type-only imports.
 
 This document describes **`DEMO_MODE=true`**, the default running app. It uses
-polling and PostgreSQL. Audio, AI calls, WebSockets, and workers are not registered.
+polling and PostgreSQL. Audio, WebSockets, and workers are not registered. Optional
+Gemini scene generation runs server-side when GEMINI_API_KEY is configured;
+conversation grading remains off in text mode.
 The imported experimental API is documented separately in [docs/API.md](docs/API.md).
 
 ## Start locally
@@ -31,6 +33,9 @@ DEMO_MODE=true
 DATABASE_URL=postgresql://rolecall:rolecall_local@localhost:5432/rolecall_integrated
 BETTER_AUTH_URL=http://127.0.0.1:4173
 CLIENT_ORIGINS=http://127.0.0.1:4173
+AI_PROVIDER=gemini
+GEMINI_MODEL=gemini-3.1-flash-lite
+# Set GEMINI_API_KEY privately in backend/.env.
 ```
 
 Generate the secret with:
@@ -45,6 +50,10 @@ npm start
 The frontend is served by the same Fastify process. Full database, Docker, and
 deployment instructions are in [the integration guide](../docs/INTEGRATION.md).
 Do not apply the old root-level migrations to the integrated database.
+
+Creating a room uses Gemini when enabled. To explicitly choose the fixed practice
+sample instead, POST `/api/rooms` with `{ "scenarioSource": "builtin" }`. An AI
+generation error returns 502 and does not silently create a sample room.
 
 ## Request conventions
 

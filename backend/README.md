@@ -3,8 +3,10 @@
 ## Integrated app (default)
 
 `DEMO_MODE=true` serves the PlayCall frontend and PostgreSQL-backed API on one
-origin. It uses polling and text chat, with no audio, AI calls, WebSockets, or
-worker loops registered. Accounts, settings, history, messages, and results persist.
+origin. It uses polling and text chat, with no audio, WebSockets, or worker loops
+registered. Optional Gemini scene generation uses GEMINI_API_KEY on the server.
+Accounts, settings, history, messages, and results persist. Conversation grading
+remains disabled in text mode.
 
 See [the integration guide](../docs/INTEGRATION.md) for setup and the active API.
 See [API_README.md](API_README.md) for endpoint contracts, cookie authentication,
@@ -28,8 +30,10 @@ Copy-Item .env.example .env
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-Paste that generated secret into BETTER_AUTH_SECRET in .env. Set OPENAI_API_KEY for
-live situation generation and grading, and ELEVENLABS_API_KEY for live speech to text.
+Paste that generated secret into BETTER_AUTH_SECRET in .env. Set GEMINI_API_KEY
+(and AI_PROVIDER=gemini) for Gemini situations and the experimental grading adapter.
+OPENAI_API_KEY remains an optional alternative provider. ELEVENLABS_API_KEY is
+needed for live speech to text in the experimental voice mode.
 These are server secrets; never put them in Vite variables or client code. On
 macOS/Linux, use cp .env.example .env instead of Copy-Item.
 

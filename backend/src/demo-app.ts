@@ -1,4 +1,4 @@
-// Integrated text-only app. Deliberately registers no media, AI, socket, or worker code.
+// Integrated text app. Optional AI situations; no media, socket, or worker code.
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 import { readFile } from 'node:fs/promises';
@@ -14,6 +14,8 @@ import { rooms, roomMessages, userSettings } from './db/schema.js';
 import { createAuth } from './auth.js';
 import { GameStore } from './store.js';
 import { GameError, memberFor, snapshot } from './game.js';
+import { configuredAi } from './ai-provider.js';
+import type { AiProvider } from './ai.js';
 
 const Room = Type.Object({ roomId: Type.String({ format: 'uuid' }) });
 const Command = Type.Union([
@@ -66,10 +68,12 @@ export async function buildDemoApp(options: {
   db: Database;
   config: Config;
   clock?: () => number;
+  ai?: AiProvider;
 }) {
   const { db, config } = options;
   const clock = options.clock ?? Date.now;
   const store = new GameStore(db, clock);
+  const ai = options.ai ?? configuredAi(config);
   const auth = createAuth(db, config, store);
   const app = Fastify({
     bodyLimit: 16_384,
@@ -171,14 +175,17 @@ export async function buildDemoApp(options: {
     audio: false,
     voiceReady: false,
     transcription: false,
-    ai: false,
+    ai: !!ai,
+    aiProvider: ai ? (config.ai?.provider ?? 'configured') : null,
+    aiModel: ai?.model ?? null,
     websockets: false,
     workers: false,
     google: !!config.google,
     missionMax: 300,
     objectivePoints: 100,
-    notice:
-      'Text negotiation is stored in PostgreSQL. No microphone, transcription, or AI processing is active. Room access expires after 24 hours; records remain until deleted by the operator.',
+    notice: ai
+      ? 'The configured AI generates fictional situations and private job briefs. Text negotiation is stored in PostgreSQL. Microphone, transcription, and conversation grading are off in this text mode. Room access expires after 24 hours; records remain until deleted by the operator.'
+      : 'Text negotiation is stored in PostgreSQL. No microphone, transcription, or AI processing is active. Room access expires after 24 hours; records remain until deleted by the operator.',
   }));
   app.get('/api/me', async (request) => {
     const user = await principal(request);
@@ -249,9 +256,41 @@ export async function buildDemoApp(options: {
   });
   app.post(
     '/api/rooms',
-    { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
-    async (request, reply) =>
-      reply.status(201).send(await store.create((await principal(request)).id)),
+    {
+      schema: {
+        body: Type.Object(
+          {
+            scenarioSource: Type.Optional(
+              Type.Union([Type.Literal('ai'), Type.Literal('builtin')]),
+            ),
+          },
+          { additionalProperties: false },
+        ),
+      },
+      config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+      const user = await principal(request);
+      let definition;
+      if (request.body.scenarioSource === 'ai' && !ai)
+        throw new GameError(
+          'AI_UNAVAILABLE',
+          'AI is not configured. Choose built-in practice.',
+          503,
+        );
+      if (ai && request.body.scenarioSource !== 'builtin') {
+        try {
+          definition = await ai.generate();
+        } catch {
+          throw new GameError(
+            'GENERATION_FAILED',
+            'The AI could not create a valid scene in time. Retry or choose built-in practice.',
+            502,
+          );
+        }
+      }
+      return reply.status(201).send(await store.create(user.id, definition));
+    },
   );
   app.post(
     '/api/rooms/join',

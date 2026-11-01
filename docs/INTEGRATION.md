@@ -8,8 +8,24 @@ row-locking persistence, Better Auth, scoring, statistics, and account linking.
 
 `backend/src/demo-app.ts` is the default entry point. Fastify serves the frontend
 and API on one origin. Polling reconciles persisted deadlines. No WebSockets,
-media routes, AI providers, or worker loops are registered, even if provider keys
-exist. `DEMO_MODE=false` opts into the original experimental backend instead.
+media routes, or worker loops are registered. Optional server-side Gemini scene
+generation is available when configured. `DEMO_MODE=false` opts into the original
+experimental voice backend instead.
+
+### Gemini configuration
+
+Keep `GEMINI_API_KEY` in the ignored `backend/.env`, never in frontend code.
+Set `AI_PROVIDER=gemini` and `GEMINI_MODEL=gemini-3.1-flash-lite` (the model verified
+with the current local key). The integrated UI generates real situations when
+creating a room. Generation errors are shown; they never silently become sample
+data. The separate **Use built-in practice scene** button explicitly requests the
+fixed sample without contacting an AI provider. The text-mode app still does not
+transcribe audio or grade conversation content. Gemini's grading adapter is also
+available to the experimental backend.
+
+UI live testing can use a separate scripted guest that joins through the real
+API; such messages must be visibly labelled synthetic. Stop and sign that guest
+out afterward. No mock data routes or bypasses are registered in the normal app.
 
 Use **a new empty database**: the imported auth IDs are text, incompatible with
 the earlier UUID database. The user approved the expanded schema. The active

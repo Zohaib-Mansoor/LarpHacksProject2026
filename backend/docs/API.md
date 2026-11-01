@@ -1,8 +1,9 @@
 # Frontend API contract
 
 **Default app:** `DEMO_MODE=true` mounts the text-only API documented in
-[INTEGRATION.md](../../docs/INTEGRATION.md). Audio, AI, WebSocket, and worker
-features described below are excluded from that mode. The active app exposes
+[INTEGRATION.md](../../docs/INTEGRATION.md). Audio, grading, WebSocket, and worker
+features described below are excluded from that mode. Gemini situation generation
+is optionally available with a server-only GEMINI_API_KEY. The active app exposes
 `/api/openapi.json`, settings, history, and text-chat endpoints.
 
 Use credentials: 'include' on fetch. Browsers supply the Origin header; command-line

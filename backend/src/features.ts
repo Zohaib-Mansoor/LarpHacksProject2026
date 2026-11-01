@@ -11,7 +11,8 @@ import {
 } from './db/schema.js';
 import type { GameStore } from './store.js';
 import { GameError } from './game.js';
-import { createAi, type AiProvider } from './ai.js';
+import type { AiProvider } from './ai.js';
+import { configuredAi } from './ai-provider.js';
 import { RtcService } from './rtc.js';
 import { rubric } from './rubric.js';
 import { drainEvaluations } from './evaluation.js';
@@ -48,9 +49,7 @@ export async function registerFeatures(
   },
 ) {
   const { db, store, config, clock, principal } = options;
-  const ai =
-    options.ai ??
-    (config.ai ? createAi(config.ai.apiKey, config.ai.model) : undefined);
+  const ai = options.ai ?? configuredAi(config);
   const speech =
     options.speech ??
     (config.elevenLabsApiKey
