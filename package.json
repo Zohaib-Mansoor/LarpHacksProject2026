@@ -1,0 +1,10 @@
+{
+  "name": "larping-workspace",
+  "private": true,
+  "scripts": {
+    "start": "npm --prefix rolecall start",
+    "dev": "npm --prefix rolecall run dev",
+    "test": "npm --prefix rolecall test",
+    "check": "npm --prefix rolecall run check"
+  }
+}
