@@ -1,3 +1,6 @@
+# CoDev connection diagnostics are local workspace state.
+/codev-connection-proof.txt
+
 node_modules/
 .env
 .env.*
