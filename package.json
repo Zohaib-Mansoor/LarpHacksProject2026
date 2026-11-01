@@ -1,0 +1,26 @@
+{
+  "name": "rolecall-database",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "db:auth:generate": "auth generate --config ./scripts/auth-schema.config.ts --adapter drizzle --dialect postgresql --output ./src/db/auth-schema.ts --yes",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio",
+    "db:verify": "tsx --env-file-if-exists=.env scripts/verify-schema.ts",
+    "db:typecheck": "tsc --project tsconfig.db.json"
+  },
+  "dependencies": {
+    "better-auth": "1.7.15",
+    "drizzle-orm": "0.45.4",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/pg": "^8.15.6",
+    "auth": "1.7.15",
+    "drizzle-kit": "0.31.11",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.3"
+  }
+}
