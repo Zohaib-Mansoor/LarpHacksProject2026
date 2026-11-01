@@ -4,6 +4,7 @@ services:
   - type: web
     name: playcall
     runtime: docker
+    branch: codex/backend
     plan: free
     region: ohio
     dockerfilePath: ./backend/Dockerfile

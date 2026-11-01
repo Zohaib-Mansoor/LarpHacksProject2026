@@ -16,13 +16,14 @@ and Git provider linking.
 
 ## 2. Put the latest local changes on GitHub
 
-The Gemini and Render setup changes are local until committed and pushed. Review
-them, then commit/push them on your chosen deployment branch. Do not commit
+The integrated backend and Render setup are maintained on `codex/backend`.
+Commit/push tested changes to that branch. Do not commit
 `backend/.env`; the Gemini key goes into Render's private environment settings.
 
 The Blueprint uses the branch you select in Render. Select the branch containing
 the merged frontend, backend, Gemini integration, and this `render.yaml` file.
-The existing integrated branch is `akshi/larphacks-project-2026`.
+The frontend integration originated on `akshi/larphacks-project-2026` and is
+included in `codex/backend`.
 
 ## 3. Deploy the Blueprint
 
@@ -104,6 +105,7 @@ choose **Manual Deploy → Deploy latest commit**. The startup script applies pe
 migrations before starting the single test instance. For paid/scaled deployment,
 move migrations into Render's pre-deploy command and run the server alone at startup.
 
-Docker could not run on the development machine, so the actual image still needs
-its first build on Render. The backend and live database flows were verified
-locally; a successful public deployment has not yet been performed.
+The initial Docker image built successfully on Render on November 1, 2026.
+Startup migrations completed and `/ready` returned `{"status":"ready"}`.
+The frontend and backend are live together at
+https://playcall-kq9z.onrender.com/ in the `LarpHacks26` Render workspace.

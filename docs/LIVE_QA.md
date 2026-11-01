@@ -1,4 +1,4 @@
-# Local live QA — November 1, 2026
+# Live QA — November 1, 2026
 
 Tested the running PlayCall UI at http://127.0.0.1:4173/ with browser computer use.
 Base branch: akshi/larphacks-project-2026, commit de20fe9.
@@ -56,4 +56,29 @@ from project changes and is not served to the browser. No credentials are includ
 in this report. Local screenshots and grading evidence are outside Git under
 the user's AppData/Local/PlayCallLocal directory.
 
-Changes from this QA session are local and have not been committed or pushed.
+The implementation and Render Blueprint were committed in `335fe66` and pushed.
+The final integrated backend is maintained on `codex/backend`.
+
+## Public Render deployment
+
+The Docker build and startup migrations succeeded on Render. The frontend and
+backend run together at https://playcall-kq9z.onrender.com/ with managed PostgreSQL.
+The public `/ready` endpoint returned `{"status":"ready"}`.
+
+Computer-use testing against the public app verified:
+
+- Gemini generated **The Rare Artifact Retrieval** with private job briefs.
+- A separate guest session joined by invite; the frontend showed 2/2 players.
+- Independent readiness started the real briefing and negotiation deadlines.
+- The labelled simulated partner's API message appeared in the browser, and the
+  browser's reply was saved through the normal API.
+- The partner's single confirmation left the negotiation active. The browser's
+  confirmation of that exact revision completed the agreement.
+- Terms were 500 credits, three-day delivery, exclusive. The buyer earned 200/300
+  and the seller 0/300, matching their generated private objectives.
+- The completed result and messages survived a browser reload.
+
+The simulated partner signed out and its script exited. No simulator, mock API,
+or production bypass remains running. Test records remain as labelled QA data.
+This validates the integrated text mode; voice, transcription, and AI conversation
+grading are not enabled in that mode. Random matchmaking remains deferred.
