@@ -9,6 +9,8 @@ import type { db as database } from "./db/index.js";
 import * as schema from "./db/schema.js";
 import { ApiError, roomService } from "./room-service.js";
 import { CreatedRoomResponse, JoinRoomBody, MeResponse, RoomParams, RoomResponse } from "../packages/contracts/src/index.js";
+import { authRoutes } from "./routes/auth.js";
+import { gameRoutes } from "./routes/game.js";
 
 export function buildApp(db: typeof database, origin: string, secret: string) {
   const app = Fastify({ bodyLimit: 16_384 }).withTypeProvider<TypeBoxTypeProvider>();
