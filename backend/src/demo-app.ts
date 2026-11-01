@@ -222,7 +222,8 @@ export async function buildDemoApp(options: {
       .from(userSettings)
       .where(eq(userSettings.userId, user.id));
     return {
-      displayName: saved?.displayName ?? user.name,
+      displayName:
+        saved?.displayName ?? (user.isAnonymous ? 'Negotiator' : user.name),
       theme: saved?.theme ?? 'system',
       captions: saved?.captions ?? true,
       reducedMotion: saved?.reducedMotion ?? false,

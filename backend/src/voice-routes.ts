@@ -11,6 +11,7 @@ import {
   validVoiceDeal,
 } from './voice-catalog.js';
 import { sql } from 'drizzle-orm';
+import { workflowsEnabled } from './workflow-ratings.js';
 
 const Code = Type.String({ pattern: '^[A-Za-z0-9]{6}$' });
 const Query = Type.Object({
@@ -27,6 +28,7 @@ export async function registerVoice(
   coach?: VoiceCoach,
 ) {
   const store = new VoiceStore(db, clock, coach);
+  store.workflowRatings = workflowsEnabled();
   const routes = app.withTypeProvider<TypeBoxTypeProvider>();
   routes.get('/api/vc/config', async () => voiceCatalog);
   routes.get('/api/vc/me/summary', async (r) => {

@@ -117,6 +117,15 @@ export async function buildApp(options: {
 
   app.addHook('onRequest', async (request) => {
     if (
+      config.requireAccount &&
+      request.url.split('?')[0] === '/api/auth/sign-in/anonymous'
+    )
+      throw new GameError(
+        'ACCOUNT_REQUIRED',
+        'Create an account or sign in to play.',
+        403,
+      );
+    if (
       ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method) &&
       !request.url.startsWith('/api/auth/')
     ) {
@@ -177,6 +186,12 @@ export async function buildApp(options: {
       throw new GameError(
         'UNAUTHENTICATED',
         'Sign in as a guest or with Google first.',
+        401,
+      );
+    if (config.requireAccount && session.user.isAnonymous)
+      throw new GameError(
+        'ACCOUNT_REQUIRED',
+        'Sign in with a registered account.',
         401,
       );
     return session.user.id;

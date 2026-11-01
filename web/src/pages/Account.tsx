@@ -51,8 +51,7 @@ export default function Account() {
           <div className="hub-balance-label">Saved caller preferences</div>
           <h1 className="hub-balance">Caller Profile</h1>
           <p style={{ color: "var(--muted)", marginTop: 6 }}>
-            In rooms, partners only ever see your server-assigned scenario alias
-            — never this callsign.
+            Other players see your username in rooms. Your email and password stay private.
           </p>
         </header>
         {user?.isGuest ? (

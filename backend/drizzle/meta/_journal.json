@@ -43,6 +43,13 @@
       "when": 1793571160211,
       "tag": "0005_cynical_hulk",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793575234859,
+      "tag": "0006_uneven_doctor_faustus",
+      "breakpoints": true
     }
   ]
 }

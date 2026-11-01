@@ -15,6 +15,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import type { Game } from '../game.js';
 import type { Feedback } from '../rubric.js';
+import type { VoiceGradeInput } from '../voice-coach.js';
 import { user } from './auth-schema.js';
 
 export * from './auth-schema.js';
@@ -66,6 +67,44 @@ export const voiceResults = pgTable(
   (t) => [
     primaryKey({ columns: [t.code, t.round, t.userId] }),
     index('voice_results_user_idx').on(t.userId),
+  ],
+);
+
+// Durable rating outbox. Render receives only the UUID; evidence stays in Postgres.
+export const voiceRatingJobs = pgTable(
+  'voice_rating_jobs',
+  {
+    id: uuid('id').primaryKey(),
+    code: text('code')
+      .notNull()
+      .references(() => voiceRooms.code, { onDelete: 'cascade' }),
+    round: integer('round').notNull(),
+    role: text('role').notNull().$type<'alex' | 'morgan'>(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id),
+    payload: jsonb('payload').$type<{
+      points: number;
+      input: VoiceGradeInput;
+    } | null>(),
+    status: text('status')
+      .notNull()
+      .$type<'pending' | 'processing' | 'completed' | 'failed'>()
+      .default('pending'),
+    attempts: integer('attempts').notNull().default(0),
+    dispatchAttempts: integer('dispatch_attempts').notNull().default(0),
+    nextDispatchAt: timestamp('next_dispatch_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    leaseToken: uuid('lease_token'),
+    leaseUntil: timestamp('lease_until', { withTimezone: true }),
+    runId: text('run_id'),
+    reason: text('reason'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    uniqueIndex('voice_rating_round_user_idx').on(t.code, t.round, t.userId),
+    index('voice_rating_dispatch_idx').on(t.status, t.nextDispatchAt),
   ],
 );
 

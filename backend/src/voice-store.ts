@@ -1,8 +1,15 @@
+import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { and, asc, desc, eq, gt, inArray, isNull, sql } from 'drizzle-orm';
 import type { Database } from './db/client.js';
-import { voiceRooms, voiceResults, user, userSettings } from './db/schema.js';
+import {
+  voiceRooms,
+  voiceResults,
+  voiceRatingJobs,
+  user,
+  userSettings,
+} from './db/schema.js';
 import { GameError } from './game.js';
 import { speakingTurn, TALK_MS, TURN_MS, TURN_COUNT } from './voice-turns.js';
 import {
@@ -23,7 +30,7 @@ type Player = {
   rematch: boolean;
   signals: unknown[];
 };
-type State = {
+export type State = {
   displayNames?: Partial<Record<Role, string>>;
   talkStartedAt?: number;
   finishedAt?: number;
@@ -42,7 +49,8 @@ type State = {
       Record<
         Role,
         {
-          status: 'processing' | 'complete' | 'failed';
+          status: 'pending' | 'processing' | 'complete' | 'failed';
+          jobId?: string;
           at: number;
           attempts: number;
           feedback?: Feedback;
@@ -100,6 +108,7 @@ const { GameStore } = (await import(
 type Row = typeof voiceRooms.$inferSelect;
 type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
 export class VoiceStore {
+  workflowRatings = false;
   constructor(
     private db: Database,
     private clock = Date.now,
@@ -222,7 +231,7 @@ export class VoiceStore {
   private async locked<T>(
     userId: string,
     code: string,
-    run: (engine: Engine, row: Row, seat: number) => T,
+    run: (engine: Engine, row: Row, seat: number, tx: Tx) => T,
   ) {
     try {
       return await this.db.transaction(async (tx) => {
@@ -271,7 +280,7 @@ export class VoiceStore {
           state.talkStartedAt = state.deadline - TALK_MS;
         if (['complete', 'incomplete'].includes(state.phase))
           state.finishedAt ??= this.clock();
-        const result = await run(engine, row, seat);
+        const result = await run(engine, row, seat, tx);
         await this.save(tx, row, engine);
         return result;
       });
@@ -569,105 +578,131 @@ export class VoiceStore {
         'Configure speech and LLM keys to enable coaching.',
         503,
       );
-    const input = await this.locked(userId, code, (engine, row, seat) => {
-      const state = row.state as State,
-        role = state.players[seat]!.role;
-      if (
-        state.round !== round ||
-        state.phase !== 'complete' ||
-        !this.allConsented(row)
-      )
-        throw new GameError(
-          'NOT_FINISHED',
-          'Finish a consented round before requesting feedback.',
-          409,
+    const input = await this.locked(
+      userId,
+      code,
+      async (engine, row, seat, tx) => {
+        const state = row.state as State,
+          role = state.players[seat]!.role;
+        if (
+          state.round !== round ||
+          state.phase !== 'complete' ||
+          !this.allConsented(row)
+        )
+          throw new GameError(
+            'NOT_FINISHED',
+            'Finish a consented round before requesting feedback.',
+            409,
+          );
+        const coach = this.coachingState(state),
+          existing = coach.evaluations[role];
+        if (existing?.status === 'complete') return null;
+        if (existing?.jobId) return null;
+        if (
+          existing &&
+          (existing.attempts >= 2 ||
+            (existing.status === 'processing' &&
+              this.clock() - existing.at < 90_000))
+        )
+          throw new GameError(
+            'GRADE_BUSY',
+            'Feedback is processing or reached its retry limit.',
+            409,
+          );
+        if (coach.clips.some((c) => c.status === 'processing'))
+          throw new GameError(
+            'TRANSCRIBING',
+            'Speech is still being transcribed.',
+            409,
+          );
+        if (state.finishedAt && this.clock() < state.finishedAt + 5000)
+          throw new GameError(
+            'TRANSCRIBING',
+            'Waiting for the final speech upload.',
+            409,
+          );
+        const transcript: TranscriptEvidence[] = coach.clips
+          .filter((c) => c.status === 'complete' && c.text)
+          .map((c) => ({
+            id: `turn-${c.turn}`,
+            seat: c.role === 'alex' ? 0 : 1,
+            text: c.text!,
+            atMs: c.turn * TURN_MS,
+          }));
+        const ownSeat = role === 'alex' ? 0 : 1;
+        const elapsedTurns = Math.min(
+          TURN_COUNT,
+          Math.ceil(
+            Math.max(
+              0,
+              (state.finishedAt ?? this.clock()) - state.talkStartedAt!,
+            ) / TURN_MS,
+          ),
         );
-      const coach = this.coachingState(state),
-        existing = coach.evaluations[role];
-      if (existing?.status === 'complete') return null;
-      if (
-        existing &&
-        (existing.attempts >= 2 ||
-          (existing.status === 'processing' &&
-            this.clock() - existing.at < 90_000))
-      )
-        throw new GameError(
-          'GRADE_BUSY',
-          'Feedback is processing or reached its retry limit.',
-          409,
-        );
-      if (coach.clips.some((c) => c.status === 'processing'))
-        throw new GameError(
-          'TRANSCRIBING',
-          'Speech is still being transcribed.',
-          409,
-        );
-      if (state.finishedAt && this.clock() < state.finishedAt + 5000)
-        throw new GameError(
-          'TRANSCRIBING',
-          'Waiting for the final speech upload.',
-          409,
-        );
-      const transcript: TranscriptEvidence[] = coach.clips
-        .filter((c) => c.status === 'complete' && c.text)
-        .map((c) => ({
-          id: `turn-${c.turn}`,
-          seat: c.role === 'alex' ? 0 : 1,
-          text: c.text!,
-          atMs: c.turn * TURN_MS,
-        }));
-      const ownSeat = role === 'alex' ? 0 : 1;
-      const elapsedTurns = Math.min(
-        TURN_COUNT,
-        Math.ceil(
-          Math.max(
-            0,
-            (state.finishedAt ?? this.clock()) - state.talkStartedAt!,
-          ) / TURN_MS,
-        ),
-      );
-      const missingSpeech = Array.from(
-        { length: elapsedTurns },
-        (_, turn) => turn,
-      ).some((turn) => {
-        const turnRole = turn % 2 === 0 ? 'alex' : 'morgan';
-        if (row.sparring && state.players[1]?.role === turnRole) return false;
-        return !coach.clips.some(
-          (c) => c.turn === turn && c.status === 'complete',
-        );
-      });
-      if (
-        missingSpeech ||
-        !transcript.some((t) => t.seat === ownSeat && t.text.length >= 20) ||
-        coach.clips.some((c) => c.status === 'failed')
-      )
-        throw new GameError(
-          'NO_EVIDENCE',
-          'There is not enough reliable speech for a grade. Mission points remain valid.',
-          409,
-        );
-      coach.evaluations[role] = {
-        status: 'processing',
-        at: this.clock(),
-        attempts: (existing?.attempts ?? 0) + 1,
-      };
-      const view = this.view(engine, row, seat);
-      return {
-        role,
-        points: view.result!.yours.reduce((a, b) => a + b, 0),
-        input: {
-          seat: ownSeat,
-          situation:
-            'The Satellite Deal: engineer and client negotiate a satellite prototype contract.',
-          yourBrief: {
-            context: view.you.context,
-            objectives: view.you.objectives,
-          },
-          confirmedDeal: view.result!.confirmed ? state.deal : null,
-          transcript,
-        } satisfies VoiceGradeInput,
-      };
-    });
+        const missingSpeech = Array.from(
+          { length: elapsedTurns },
+          (_, turn) => turn,
+        ).some((turn) => {
+          const turnRole = turn % 2 === 0 ? 'alex' : 'morgan';
+          if (row.sparring && state.players[1]?.role === turnRole) return false;
+          return !coach.clips.some(
+            (c) => c.turn === turn && c.status === 'complete',
+          );
+        });
+        if (
+          missingSpeech ||
+          !transcript.some((t) => t.seat === ownSeat && t.text.length >= 20) ||
+          coach.clips.some((c) => c.status === 'failed')
+        )
+          throw new GameError(
+            'NO_EVIDENCE',
+            'There is not enough reliable speech for a grade. Mission points remain valid.',
+            409,
+          );
+        coach.evaluations[role] = {
+          status: 'processing',
+          at: this.clock(),
+          attempts: (existing?.attempts ?? 0) + 1,
+        };
+        const view = this.view(engine, row, seat);
+        const rating = {
+          role,
+          points: view.result!.yours.reduce((a, b) => a + b, 0),
+          input: {
+            seat: ownSeat,
+            situation:
+              'The Satellite Deal: engineer and client negotiate a satellite prototype contract.',
+            yourBrief: {
+              context: view.you.context,
+              objectives: view.you.objectives,
+            },
+            confirmedDeal: view.result!.confirmed ? state.deal : null,
+            transcript,
+          } satisfies VoiceGradeInput,
+        };
+        if (this.workflowRatings) {
+          const jobId = randomUUID();
+          await tx.insert(voiceRatingJobs).values({
+            id: jobId,
+            code: row.code,
+            round,
+            role,
+            userId,
+            payload: { points: rating.points, input: rating.input },
+            nextDispatchAt: new Date(this.clock()),
+            expiresAt: new Date(this.clock() + 7 * 24 * 60 * 60_000),
+          });
+          coach.evaluations[role] = {
+            status: 'pending',
+            at: this.clock(),
+            attempts: 0,
+            jobId,
+          };
+          return null;
+        }
+        return rating;
+      },
+    );
     if (!input) return this.read(userId, code);
     let feedback: Feedback | undefined;
     try {

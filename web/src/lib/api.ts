@@ -69,7 +69,7 @@ export interface RoomView {
     configured: boolean; model: string | null; consent: boolean; allConsented: boolean;
     pendingClips: number; failedClips: number;
     transcript: { turn: number; speaker: 'alex' | 'morgan'; text: string }[];
-    status: 'idle' | 'processing' | 'complete' | 'failed';
+    status: 'idle' | 'pending' | 'processing' | 'complete' | 'failed';
     feedback: null | {
       objectivePoints: number; communicationPoints: number; overall: number; model: string;
       assessment: { dimensions: { key: string; level: number; explanation: string; evidence: { segmentId: string; quote: string }[] }[] };

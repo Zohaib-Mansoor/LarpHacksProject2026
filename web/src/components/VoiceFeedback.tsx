@@ -22,7 +22,7 @@ export function VoiceFeedback({ view, onUpdate }: { view: RoomView; onUpdate: (v
       if (!response.ok) { setMessage(result.message ?? result.error?.message ?? 'AI feedback unavailable. Mission points remain valid.'); return; }
       onUpdate(result);
       setMessage(result.coaching.status === 'failed' ? 'AI feedback unavailable. Mission points remain valid.' : '');
-    } catch { setMessage('Could not reach the coach. Mission points remain valid.'); }
+    } catch { setMessage('Could not reach the rating service. Mission points remain valid.'); }
     finally { setBusy(false); }
   }
   useEffect(() => {
@@ -34,9 +34,9 @@ export function VoiceFeedback({ view, onUpdate }: { view: RoomView; onUpdate: (v
   }, [view.code, view.round, view.phase, coach?.configured, coach?.allConsented, coach?.status, coach?.pendingClips]);
   return (
     <section className="debrief-card" style={{ marginBottom: 24 }} aria-label="AI negotiation feedback">
-      <p className="kicker mono">NEGOTIATION COACH · {rules.missionMax} MISSION + 40 COMMUNICATION</p>
-      <h2>{coach?.feedback ? `${coach.feedback.overall} / 100` : 'Speech and rubric feedback'}</h2>
-      {!coach?.configured ? <p>AI coaching is not enabled for this demo. Your mission score is valid.</p>
+      <p className="kicker mono">NEGOTIATION RATING · {rules.missionMax} MISSION + 40 COMMUNICATION</p>
+      <h2>{coach?.feedback ? `${coach.feedback.overall} / 100` : 'Speech-based rubric rating'}</h2>
+      {!coach?.configured ? <p>Speech rating is not enabled for this demo. Your mission score is valid.</p>
         : !coach.allConsented ? <p>AI coaching was off for this round. Both players must opt in before starting.</p>
         : coach.feedback ? <>
           <p>Mission goals: {coach.feedback.objectivePoints}/{rules.missionMax} · Communication: {coach.feedback.communicationPoints}/40</p>
@@ -46,7 +46,7 @@ export function VoiceFeedback({ view, onUpdate }: { view: RoomView; onUpdate: (v
           </div>)}
           <small>AI feedback can make mistakes. Goals are scored from the signed deal; communication is supported by transcript quotes.</small>
         </> : <>
-          <p role="status">{busy || coach.status === 'processing' ? 'Rating your negotiation…' : coach.pendingClips ? 'Transcribing the last speaking turn…' : message || 'Preparing your evidence-based feedback. Missing speech never becomes an automatic zero.'}</p>
+          <p role="status">{busy || ['pending', 'processing'].includes(coach.status) ? 'Rating your negotiation…' : coach.pendingClips ? 'Transcribing the last speaking turn…' : message || 'Preparing your evidence-based feedback. Missing speech never becomes an automatic zero.'}</p>
           <button className="wise-pill wise-pill-solid" disabled={busy || coach.status === 'processing' || coach.pendingClips > 0} onClick={() => void evaluate()}>Rate my negotiation</button>
         </>}
       {coach?.transcript.length > 0 ? <details style={{ marginTop: 18 }}><summary>Speech transcript ({coach.transcript.length} turns)</summary>

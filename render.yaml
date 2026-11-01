@@ -23,6 +23,10 @@ services:
         value: "true"
       - key: REQUIRE_ACCOUNT
         value: "true"
+      - key: RENDER_WORKFLOWS_ENABLED
+        value: "true"
+      - key: RENDER_WORKFLOW_TASK
+        value: playcall-ratings/rateNegotiation
       - key: BETTER_AUTH_SECRET
         generateValue: true
       - key: DATABASE_URL

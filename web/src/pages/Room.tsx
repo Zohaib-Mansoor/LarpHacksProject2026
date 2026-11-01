@@ -120,9 +120,9 @@ export default function Room() {
         method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ code: roomCode, round: view.round, granted }),
       });
-      if (!response.ok) throw new Error('Could not save coaching preference.');
+      if (!response.ok) throw new Error('Could not save rating preference.');
       handleRoomView(await response.json(), token);
-    } catch (error) { toast(error instanceof Error ? error.message : 'Could not save coaching preference.'); }
+    } catch (error) { toast(error instanceof Error ? error.message : 'Could not save rating preference.'); }
   }
 
   // Fallback heartbeat poll (SSE handles real-time <5ms sync; this keeps server presence fresh)
@@ -318,9 +318,9 @@ export default function Room() {
               <p>{scenario.roles[0].short} starts. A {rules.warningSeconds}-second reminder helps you wrap up, then your microphone mutes until your next turn. Both microphones stay muted during final signing.</p>
               <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginTop: 12 }}>
                 <input type="checkbox" checked={view.coaching?.consent ?? false} disabled={!view.coaching?.configured} onChange={e => void coachingConsent(e.target.checked)} />
-                <span>Enable AI coaching for this round. My speaking turns go to ElevenLabs for transcription; the conversation text and my private brief go to the configured LLM ({view.coaching?.model ?? 'not configured'}) for rubric feedback. PlayCall stores transcripts and feedback, not audio files. Provider retention policies apply. Both players must opt in.</span>
+                <span>Enable Speech rating for this round. My speaking turns go to ElevenLabs for transcription; the conversation text and my private brief go to the configured LLM ({view.coaching?.model ?? 'not configured'}) for rubric feedback. PlayCall stores transcripts and feedback, not audio files. Provider retention policies apply. Both players must opt in.</span>
               </label>
-              <p className="mono">{!view.coaching?.configured ? 'AI coaching is unavailable on this server. Mission scoring is enabled.' : view.coaching.allConsented ? 'Both players opted in. Speech recording starts only during your turns.' : 'AI coaching is off until both players opt in.'}</p>
+              <p className="mono">{!view.coaching?.configured ? 'Speech rating is unavailable on this server. Mission scoring is enabled.' : view.coaching.allConsented ? 'Both players opted in. Speech recording starts only during your turns.' : 'Speech rating is off until both players opt in.'}</p>
             </div>
             <div className="greenroom-mic-bar">
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -408,7 +408,7 @@ export default function Room() {
           <div className={`notice${voice.canSpeak && voice.turnRemaining <= rules.warningSeconds ? ' notice-danger' : ''}`} role="status" aria-live="polite" style={{ marginBottom: 18 }} data-testid="speaking-turn">
             <strong>{view.phase === 'finalize' ? 'Speaking time is over · both microphones muted' : view.paused ? 'Turn paused · microphones muted' : view.speakingTurn ? `Turn ${view.speakingTurn.index + 1} / ${view.speakingTurn.total} · ${voice.canSpeak ? 'Your turn' : `${view.peer?.short || 'Caller'}’s turn`}` : 'Switching turns · microphones muted'}</strong>
             {view.phase === 'talk' && view.speakingTurn ? <p><span className="mono tnum" data-testid="turn-seconds">{voice.turnRemaining}s</span> · {voice.canSpeak ? voice.turnRemaining <= rules.warningSeconds ? 'Wrap up — your microphone mutes at zero.' : 'You have the floor. Your microphone mutes automatically at zero.' : 'Listen now. Your microphone opens on your next turn unless you manually mute it.'}</p> : <p>Review and sign the current offer before the final clock runs out.</p>}
-            {view.coaching?.allConsented ? <p>{voice.recordingStatus || 'AI coaching enabled. Speech is transcribed after each turn.'}</p> : <p>AI coaching off for this round.</p>}
+            {view.coaching?.allConsented ? <p>{voice.recordingStatus || 'Speech rating enabled. Speech is transcribed after each turn.'}</p> : <p>Speech rating off for this round.</p>}
           </div>
 
           {!voice.micJoined ? (
