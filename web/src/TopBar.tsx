@@ -3,10 +3,12 @@ import { Link, useLocation } from 'react-router-dom';
 import { useTheme } from './providers/ThemeProvider';
 import { HashLink } from './motion/HashLink';
 import { getProfile, getRoundHistory } from './lib/api';
+import { useSession } from './providers/SessionProvider';
 
 const FLOW_PREFIXES = ['/setup', '/room/', '/demo', '/results/'];
 
 export function TopBar() {
+  const { user } = useSession();
   const { theme, toggle } = useTheme();
   const { pathname } = useLocation();
   const isDark = theme === 'dark';
@@ -49,7 +51,7 @@ export function TopBar() {
         </div>
       ) : null}
       <header className={`topbar${isHero ? ' is-hero' : ''}${isAppWorkspace ? ' is-workspace' : ''}${scrolled ? ' is-scrolled' : ''}`}>
-        <Link to="/" className="wordmark" aria-label="PlayCall home">
+        <Link to={user ? '/play' : '/'} className="wordmark" aria-label="PlayCall home">
           <LogoMark />
           playcall
         </Link>
