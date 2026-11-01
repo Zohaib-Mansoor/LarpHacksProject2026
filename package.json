@@ -1,0 +1,10 @@
+{
+  "name": "larping-workspace",
+  "private": true,
+  "scripts": {
+    "start": "npm --prefix playcall start",
+    "dev": "npm --prefix playcall run dev",
+    "test": "npm --prefix playcall test",
+    "check": "npm --prefix playcall run check"
+  }
+}
