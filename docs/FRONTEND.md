@@ -1,5 +1,10 @@
 # Imported PlayCall prototype
 
+**Updated:** the default frontend is now connected to PostgreSQL through Fastify.
+Follow [INTEGRATION.md](INTEGRATION.md). Root `start`/`dev` run the integrated app;
+`npm run frontend:prototype` runs the preserved original in-memory server.
+The historical import details below describe that original prototype only.
+
 Imported `playcall/` from GitHub branch `codev/supert33/work`, commit `0df1a9b`.
 The teammate's source is preserved. Root backend files and configuration remain
 in place.

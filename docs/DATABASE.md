@@ -1,5 +1,8 @@
 # RoleCall database — Phase 1
 
+**Historical phase:** follow [INTEGRATION.md](INTEGRATION.md) for the active app's
+separate database. These original tables are preserved; do not mix the schemas.
+
 This phase contains the database only. There are five application tables and
 four Better Auth tables. Drizzle also keeps its own migration journal in the
 `drizzle` schema; it is not an application table.

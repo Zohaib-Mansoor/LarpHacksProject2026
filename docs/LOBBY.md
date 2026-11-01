@@ -1,5 +1,9 @@
 # Phase 2: guest sessions and two-player lobby API
 
+**Historical phase:** follow [INTEGRATION.md](INTEGRATION.md) for the active app.
+The earlier `src/` implementation remains for reference. Root `api:*` commands now
+target `backend/`.
+
 This phase adds Fastify and mounts Better Auth against the existing Drizzle schema.
 No tables or migrations changed. Gameplay, readiness, and the React screens are
 the next phase; the returned `/join?token=...` URL is for that future frontend.
