@@ -15,7 +15,7 @@ type SetupMode = 'sparring' | 'match' | 'create' | 'join';
 type RoleChoice = 'random' | 'alex' | 'morgan';
 
 const MODE_LABELS: Record<SetupMode, { title: string; sub: string; tag: string }> = {
-  sparring: { title: 'Instant voice sparring call', sub: 'Spoken AI caller + live mic transcription · starts now', tag: 'Voice AI' },
+  sparring: { title: 'Instant voice sparring call', sub: 'Scripted practice caller · optional browser captions', tag: 'Voice AI' },
   match: { title: 'Anonymous stranger call', sub: 'Live WebRTC audio pairing · server-assigned alias', tag: 'Live 2P' },
   create: { title: 'Private invite call', sub: 'Generates a 6-character call code for a friend or 2nd tab', tag: 'Invite' },
   join: { title: 'Join existing call code', sub: 'Enter a 6-character invite code to dial into a room', tag: 'Dial in' },
@@ -44,7 +44,7 @@ export default function Setup() {
   const [role, setRole] = useState<RoleChoice>(initialRole);
   const [joinCode, setJoinCode] = useState((params.get('code') || '').toUpperCase());
   const [callsign, setCallsign] = useState(existingProfile.callsign);
-  const [consent, setConsent] = useState<boolean>(true);
+  const [consent, setConsent] = useState<boolean>(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -232,7 +232,7 @@ export default function Setup() {
         <label className="flow-consent flow-row-anim">
           <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} />
           <span>
-            I am 13 or older and understand the <Link to="/privacy">processing details</Link> — room messages and terms stay ephemeral in memory.
+            I am 13 or older and understand the <Link to="/privacy">processing details</Link> — messages and deals are saved. Voice is live, not recorded; captions are optional.
           </span>
         </label>
 

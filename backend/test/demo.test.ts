@@ -11,6 +11,7 @@ import { BRIEF_MS, type RoomSnapshot } from '../src/game.js';
 import type { Config } from '../src/config.js';
 import { builtinScenario, freezeScenario } from '../src/scenario.js';
 import type { AiProvider } from '../src/ai.js';
+import type { VoiceView } from '../src/voice-store.js';
 
 const origin = 'http://127.0.0.1:4173';
 const config: Config = {
@@ -372,4 +373,243 @@ describe('one-origin database demo', () => {
       expect(writes.map((w) => w.statusCode).sort()).toEqual([200, 409]);
     },
   );
+});
+
+describe('React realtime voice + persistent backend', () => {
+  const vc = (
+    headers: Headers,
+    code: string,
+    action: Record<string, unknown>,
+  ) => post('/api/vc/action', headers, { code, ...action });
+  async function pair() {
+    const a = await guest(),
+      b = await guest();
+    const created = await post('/api/vc/rooms', a, {
+      consent: true,
+      mode: 'text',
+    });
+    expect(created.statusCode, created.body).toBe(201);
+    const code = created.json<VoiceView>().code;
+    const joined = await post('/api/vc/join', b, { code, consent: true });
+    expect(joined.statusCode, joined.body).toBe(200);
+    return { a, b, code };
+  }
+  it('persists rooms, enforces identity/capacity, resets confirmations, and settles results once', async () => {
+    const { a, b, code } = await pair();
+    const third = await guest();
+    expect(
+      (await post('/api/vc/join', third, { code, consent: true })).statusCode,
+    ).toBe(409);
+    expect(
+      (
+        await built.app.inject({
+          url: `/api/vc/room?code=${code}`,
+          headers: third,
+        })
+      ).statusCode,
+    ).toBe(404);
+    expect(
+      (
+        await built.app.inject({
+          url: `/api/vc/room?code=${code}`,
+          headers: { authorization: 'Bearer cookie-session' },
+        })
+      ).statusCode,
+    ).toBe(401);
+    const av = (
+      await built.app.inject({ url: `/api/vc/room?code=${code}`, headers: a })
+    ).json<VoiceView>();
+    expect(av.token).toBe('cookie-session');
+    expect(JSON.stringify(av.peer)).not.toContain('objectives');
+    expect(JSON.stringify(av.peer)).not.toContain('token');
+    await vc(a, code, { type: 'ready' });
+    await vc(b, code, { type: 'ready' });
+    const offer = { type: 'propose', deal: { price: 500, package: 'phased' } };
+    expect((await vc(a, code, offer)).statusCode).toBe(200);
+    await vc(a, code, { type: 'confirm', revision: 1 });
+    const revised = await vc(b, code, {
+      ...offer,
+      deal: { price: 525, package: 'phased' },
+    });
+    expect(revised.json().accepted).toEqual([]);
+    expect(
+      (await vc(a, code, { type: 'confirm', revision: 1 })).statusCode,
+    ).toBe(409);
+    await vc(a, code, { type: 'confirm', revision: 2 });
+    const result = await vc(b, code, { type: 'confirm', revision: 2 });
+    expect(result.json().phase).toBe('complete');
+    expect(result.json().result.scores).toEqual({ alex: 40, morgan: 40 });
+    const restarted = await buildDemoApp({ db, config, clock: () => now });
+    try {
+      const saved = await restarted.app.inject({
+        url: `/api/vc/room?code=${code}`,
+        headers: a,
+      });
+      expect(saved.json().deal.price).toBe(525);
+      expect(saved.json().result.otherObjectives).toBeNull();
+    } finally {
+      await restarted.app.close();
+    }
+    const history = (
+      await built.app.inject({ url: '/api/vc/me/history', headers: a })
+    ).json();
+    expect(
+      history.rounds.filter((r: { code: string }) => r.code === code),
+    ).toHaveLength(1);
+    const published = await post('/api/vc/leaderboard', a, {
+      code,
+      callsign: 'Test Caller',
+    });
+    expect(published.statusCode).toBe(200);
+    await post('/api/vc/leaderboard', a, { code, callsign: 'Test Caller' });
+    expect(
+      (await built.app.inject('/api/vc/leaderboard'))
+        .json()
+        .entries.find((r: { callsign: string }) => r.callsign === 'Test Caller')
+        .points,
+    ).toBe(40);
+  });
+  it('provides a disclosed scripted solo partner', async () => {
+    const a = await guest();
+    const room = (
+      await post('/api/vc/sparring', a, { consent: true, role: 'alex' })
+    ).json();
+    expect(room.sparring).toBe(true);
+    await vc(a, room.code, { type: 'ready' });
+    const offer = await vc(a, room.code, {
+      type: 'propose',
+      deal: { price: 525, package: 'phased' },
+    });
+    expect(offer.json().accepted).toContain('morgan');
+    const result = await vc(a, room.code, { type: 'confirm', revision: 1 });
+    expect(result.json().phase).toBe('complete');
+  });
+  it.skipIf(!process.env.DEMO_TEST_DATABASE_URL)(
+    'pairs two queue entrants atomically using PostgreSQL',
+    async () => {
+      const a = await guest(),
+        b = await guest();
+      const responses = await Promise.all(
+        [a, b].map((h) => post('/api/vc/match', h, { consent: true })),
+      );
+      expect(responses.map((r) => r.statusCode)).toEqual([200, 200]);
+      expect(responses[0]!.json().code).toBe(responses[1]!.json().code);
+      expect(
+        (
+          await built.app.inject({
+            url: `/api/vc/room?code=${responses[0]!.json().code}`,
+            headers: a,
+          })
+        ).json().matched,
+      ).toBe(true);
+    },
+  );
+  it('moves voice rooms and results safely when a guest creates an account', async () => {
+    const a = await guest();
+    const room = (await post('/api/vc/rooms', a, { consent: true })).json();
+    const signup = await post('/api/auth/sign-up/email', a, {
+      name: 'VC Account',
+      email: `${randomUUID()}@example.invalid`,
+      password: 'voice-test-password-1234',
+    });
+    expect(signup.statusCode, signup.body).toBe(200);
+    const linked = {
+      origin,
+      cookie: signup.cookies.map((c) => `${c.name}=${c.value}`).join('; '),
+    };
+    expect(
+      (
+        await built.app.inject({
+          url: `/api/vc/room?code=${room.code}`,
+          headers: linked,
+        })
+      ).statusCode,
+    ).toBe(200);
+  });
+  it('delivers authorized SSE signaling and transient PCM, closes after logout', async () => {
+    const { a, b, code } = await pair();
+    await vc(a, code, { type: 'ready' });
+    await vc(b, code, { type: 'ready' });
+    const server = await buildDemoApp({ db, config, clock: () => now });
+    await server.app.listen({ host: '127.0.0.1', port: 0 });
+    const address = server.app.server.address();
+    if (!address || typeof address === 'string')
+      throw Error('Missing server address');
+    const base = `http://127.0.0.1:${address.port}`;
+    const abort = new AbortController();
+    const response = await fetch(`${base}/api/vc/call-stream?code=${code}`, {
+      headers: b,
+      signal: abort.signal,
+    });
+    expect(response.status).toBe(200);
+    const reader = response.body!.getReader();
+    let buffer = '';
+    async function until(event: string) {
+      const deadline = Date.now() + 5000;
+      while (Date.now() < deadline) {
+        const found = buffer.indexOf('\n\n');
+        if (found >= 0) {
+          const chunk = buffer.slice(0, found);
+          buffer = buffer.slice(found + 2);
+          if (chunk.startsWith(`event: ${event}\n`))
+            return JSON.parse(chunk.split('\ndata: ')[1]!);
+          continue;
+        }
+        const { value, done } = await reader.read();
+        if (done) return null;
+        buffer += new TextDecoder().decode(value);
+      }
+      throw Error(`Missing SSE event ${event}`);
+    }
+    try {
+      expect((await until('hello')).role).toBe('morgan');
+      const call = (path: string, body: object) =>
+        server.app.inject({
+          method: 'POST',
+          url: `/api/vc/${path}`,
+          headers: a,
+          payload: body,
+        });
+      expect(
+        (
+          await call('call-signal', {
+            code,
+            signal: { description: { type: 'offer', sdp: 'test-sdp' } },
+          })
+        ).statusCode,
+      ).toBe(200);
+      expect((await until('signal')).signal.description.sdp).toBe('test-sdp');
+      expect(
+        (
+          await call('call-audio', {
+            code,
+            rate: 16000,
+            pcm: Buffer.alloc(3200).toString('base64'),
+          })
+        ).statusCode,
+      ).toBe(200);
+      expect((await until('audio')).rate).toBe(16000);
+      const stranger = await guest();
+      expect(
+        (
+          await server.app.inject({
+            method: 'POST',
+            url: '/api/vc/call-signal',
+            headers: stranger,
+            payload: { code, signal: {} },
+          })
+        ).statusCode,
+      ).toBe(404);
+      await server.app.inject({
+        method: 'POST',
+        url: '/api/auth/sign-out',
+        headers: b,
+        payload: {},
+      });
+      expect(await until('never')).toBeNull();
+    } finally {
+      abort.abort();
+      await server.app.close();
+    }
+  }, 15000);
 });

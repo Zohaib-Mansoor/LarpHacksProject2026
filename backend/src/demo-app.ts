@@ -1,6 +1,7 @@
 // Integrated text app. Optional AI situations; no media, socket, or worker code.
 import { randomUUID } from 'node:crypto';
-import { resolve } from 'node:path';
+import { resolve, extname, sep } from 'node:path';
+import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import Fastify, { type FastifyRequest } from 'fastify';
 import rateLimit from '@fastify/rate-limit';
@@ -15,6 +16,7 @@ import { createAuth } from './auth.js';
 import { GameStore } from './store.js';
 import { GameError, memberFor, snapshot } from './game.js';
 import { configuredAi } from './ai-provider.js';
+import { registerVoice } from './voice-routes.js';
 import type { AiProvider } from './ai.js';
 
 const Room = Type.Object({ roomId: Type.String({ format: 'uuid' }) });
@@ -60,6 +62,7 @@ const Settings = Type.Object(
     ]),
     captions: Type.Boolean(),
     reducedMotion: Type.Boolean(),
+    leaderboardOptIn: Type.Optional(Type.Boolean()),
   },
   { additionalProperties: false },
 );
@@ -172,6 +175,9 @@ export async function buildDemoApp(options: {
   });
   app.get('/api/config', async () => ({
     mode: 'database-text',
+    realtimeVoice: true,
+    matchmaking: true,
+    voiceProtocol: '/api/vc',
     audio: false,
     voiceReady: false,
     transcription: false,
@@ -202,6 +208,7 @@ export async function buildDemoApp(options: {
       theme: saved?.theme ?? 'system',
       captions: saved?.captions ?? true,
       reducedMotion: saved?.reducedMotion ?? false,
+      leaderboardOptIn: saved?.leaderboardOptIn ?? false,
       guest: !!user.isAnonymous,
     };
   });
@@ -415,8 +422,55 @@ export async function buildDemoApp(options: {
       return reply.status(201).send({ saved: true });
     },
   );
+  await registerVoice(app, db, principal, clock);
   // Exact static routes: missing /api paths can never fall through to HTML.
   const publicRoot = resolve(import.meta.dirname, '../../playcall/public');
+  const webRoot = resolve(import.meta.dirname, '../../web/dist');
+  if (existsSync(resolve(webRoot, 'index.html'))) {
+    for (const route of [
+      '/',
+      '/play',
+      '/setup',
+      '/demo',
+      '/account',
+      '/login',
+      '/signup',
+      '/privacy',
+      '/terms',
+      '/leaderboard',
+      '/room/:code',
+      '/results/:code',
+    ]) {
+      app.get(route, async (_r, reply) =>
+        reply
+          .type('text/html')
+          .header('cache-control', 'no-store')
+          .header('permissions-policy', 'camera=(), microphone=(self)')
+          .send(await readFile(resolve(webRoot, 'index.html'))),
+      );
+    }
+    app.get(
+      '/assets/*',
+      { schema: { params: Type.Object({ '*': Type.String() }) } },
+      async (r, reply) => {
+        const path = resolve(webRoot, 'assets', r.params['*']);
+        if (
+          !path.startsWith(resolve(webRoot, 'assets') + sep) ||
+          !existsSync(path)
+        )
+          return reply.status(404).send({ error: 'Not found' });
+        const mime: Record<string, string> = {
+          '.js': 'text/javascript',
+          '.css': 'text/css',
+          '.woff2': 'font/woff2',
+          '.svg': 'image/svg+xml',
+        };
+        return reply
+          .type(mime[extname(path)] ?? 'application/octet-stream')
+          .send(await readFile(path));
+      },
+    );
+  }
   const files: Record<string, string> = {
     '/': 'text/html; charset=utf-8',
     '/style.css': 'text/css',
@@ -430,6 +484,7 @@ export async function buildDemoApp(options: {
     '/favicon.svg': 'image/svg+xml',
   };
   for (const [path, contentType] of Object.entries(files)) {
+    if (path === '/' && existsSync(resolve(webRoot, 'index.html'))) continue;
     app.get(path, async (_request, reply) =>
       reply
         .type(contentType)

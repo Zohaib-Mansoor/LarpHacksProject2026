@@ -1,4 +1,9 @@
 FROM node:24-alpine AS build
+WORKDIR /app/web
+COPY web/package.json web/package-lock.json ./
+RUN npm ci
+COPY web ./
+RUN npm run build
 WORKDIR /app/backend
 COPY backend/package.json backend/package-lock.json ./
 RUN npm ci
@@ -15,6 +20,8 @@ COPY --from=build /app/backend/dist ./dist
 COPY backend/drizzle ./drizzle
 COPY backend/scripts/start-render.sh ./start-render.sh
 COPY playcall/public /app/playcall/public
+COPY playcall/lib /app/playcall/lib
+COPY --from=build /app/web/dist /app/web/dist
 USER node
 EXPOSE 4173
 CMD ["node", "dist/server.js"]

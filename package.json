@@ -11,7 +11,7 @@
     "dev": "npm --prefix backend run dev",
     "test": "npm --prefix backend test",
     "check": "npm --prefix backend run typecheck && npm --prefix backend run lint",
-    "build": "npm --prefix backend run build",
+    "build": "npm --prefix web run build && npm --prefix backend run build",
     "frontend:prototype": "npm --prefix playcall start",
     "playcall:start": "npm --prefix web run build && npm --prefix playcall start",
     "playcall:test": "npm --prefix playcall test",

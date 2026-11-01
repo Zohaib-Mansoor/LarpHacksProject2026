@@ -1,102 +1,102 @@
-import { FormEvent, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { saveProfile } from '../lib/api';
-import { useToast } from '../providers/ToastProvider';
-
-function ageFromDob(dob: string): number {
-  const birth = new Date(dob);
-  if (Number.isNaN(birth.getTime())) return -1;
-  const today = new Date();
-  let age = today.getFullYear() - birth.getFullYear();
-  const m = today.getMonth() - birth.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
-  return age;
-}
-
+import { FormEvent, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { syncAccount } from "../lib/api";
+import { useSession } from "../providers/SessionProvider";
 export default function Signup() {
+  const [name, setName] = useState(""),
+    [email, setEmail] = useState(""),
+    [password, setPassword] = useState(""),
+    [error, setError] = useState("");
+  const [busy, setBusy] = useState(false),
+    [eligible, setEligible] = useState(false);
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const [callsign, setCallsign] = useState('');
-  const [dob, setDob] = useState('');
-  const [optIn, setOptIn] = useState(true);
-  const [consent, setConsent] = useState(false);
-  const [refusedUnder13, setRefusedUnder13] = useState(false);
-  const [error, setError] = useState('');
-
-  function onSubmit(e: FormEvent) {
+  const { refresh } = useSession();
+  async function submit(e: FormEvent) {
     e.preventDefault();
-    if (refusedUnder13) return;
-    setError('');
-    if (!callsign.trim()) {
-      setError('Choose a callsign (2–24 characters).');
-      return;
+    if (!eligible) return;
+    setBusy(true);
+    setError("");
+    try {
+      const r = await fetch("/api/auth/sign-up/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password }),
+      });
+      const body = await r.json();
+      if (!r.ok) throw Error(body.message || "Unable to create account.");
+      await syncAccount();
+      await refresh();
+      navigate("/play");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to create account.");
+    } finally {
+      setBusy(false);
     }
-    const age = ageFromDob(dob);
-    if (age < 0) {
-      setError('Enter a valid date of birth.');
-      return;
-    }
-    if (age < 13) {
-      setRefusedUnder13(true);
-      setError('PlayCall is restricted to players aged 13 and older. Account creation cannot proceed.');
-      return;
-    }
-    if (!consent) {
-      setError('Accept the Privacy Policy and Terms to create your profile.');
-      return;
-    }
-    saveProfile({ callsign: callsign.trim(), ageConfirmed: true, leaderboardOptIn: optIn });
-    toast('Caller profile ready!');
-    navigate('/play');
   }
-
   return (
     <div className="auth-shell">
-      <form className="auth-card" onSubmit={onSubmit} noValidate>
-        <p className="kicker mono">CREATE CALLER PROFILE · 13+</p>
-        <h1 className="display auth-title">Claim your callsign</h1>
-        <p className="auth-sub">Used only for opt-in mission standings. Inside rooms, your identity is always a server-dealt alias.</p>
-
-        <div className="flow-input-block">
-          <label htmlFor="signup-callsign">Callsign</label>
+      <form className="auth-card" onSubmit={submit}>
+        <p className="kicker mono">CREATE CALLER ACCOUNT</p>
+        <h1 className="display auth-title">Keep your progress</h1>
+        <p className="auth-sub">
+          Your account details stay private. Rooms use fictional scenario
+          aliases.
+        </p>
+        <label className="flow-input-block">
+          Private name
           <input
-            id="signup-callsign"
-            value={callsign}
-            onChange={e => setCallsign(e.target.value.slice(0, 24))}
-            placeholder="AZURE-OTTER"
-            disabled={refusedUnder13}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            maxLength={40}
             required
           />
-        </div>
-
-        <div className="flow-input-block">
-          <label htmlFor="signup-dob">Date of birth (13+ eligibility check)</label>
+        </label>
+        <label className="flow-input-block">
+          Email
           <input
-            id="signup-dob"
-            type="date"
-            value={dob}
-            onChange={e => setDob(e.target.value)}
-            disabled={refusedUnder13}
+            type="email"
+            value={email}
+            autoComplete="email"
+            onChange={(e) => setEmail(e.target.value)}
             required
           />
-        </div>
-
-        <label className="flow-consent">
-          <input type="checkbox" checked={optIn} onChange={e => setOptIn(e.target.checked)} disabled={refusedUnder13} />
-          <span>List my verified mission points on the session leaderboard.</span>
         </label>
-
-        <label className="flow-consent">
-          <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} disabled={refusedUnder13} />
-          <span>I agree to the <Link to="/privacy">Privacy Policy</Link> and <Link to="/terms">Terms</Link>.</span>
+        <label className="flow-input-block">
+          Password
+          <input
+            type="password"
+            minLength={12}
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
         </label>
-
-        {error ? <div className="notice notice-danger" role="alert">{error}</div> : null}
-
-        <button type="submit" className="wise-cta-wide" disabled={refusedUnder13}>
-          Create profile &amp; enter Hub
+        <label className="flow-consent">
+          <input
+            type="checkbox"
+            checked={eligible}
+            onChange={(e) => setEligible(e.target.checked)}
+            required
+          />
+          <span>
+            I am 13 or older and accept the <Link to="/terms">Terms</Link> and{" "}
+            <Link to="/privacy">Privacy Policy</Link>.
+          </span>
+        </label>
+        <p className="auth-foot">
+          Use at least 12 characters. Password recovery and email verification
+          need mail-provider setup.
+        </p>
+        {error && (
+          <p role="alert" className="notice notice-danger">
+            {error}
+          </p>
+        )}
+        <button className="wise-cta-wide" disabled={busy}>
+          Create account
         </button>
-        <p className="auth-foot">Already have a callsign? <Link to="/login">Log in</Link></p>
+        <Link to="/login">Already have an account?</Link>
       </form>
     </div>
   );

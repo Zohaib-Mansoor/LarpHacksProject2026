@@ -35,7 +35,7 @@ export default function Room() {
 
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
-  const [subtitlesOn, setSubtitlesOn] = useState(true);
+  const [subtitlesOn, setSubtitlesOn] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
   const [offerOpen, setOfferOpen] = useState(false);
   const [dossierOpen, setDossierOpen] = useState(false);
@@ -81,6 +81,7 @@ export default function Room() {
   );
 
   const voice = useVoiceCall({
+    transcribe: subtitlesOn,
     code: roomCode,
     token,
     phase: view?.phase ?? null,
@@ -222,6 +223,7 @@ export default function Room() {
   return (
     <div className="flow-page" ref={stageRef}>
       <FlowStepperHeader step={stepIndex} badge={badge} onClose={() => setLeaveOpen(true)} />
+      {view.sparring ? <p className="notice" role="note">Scripted solo practice: your partner follows deterministic rules and uses browser speech synthesis. This is not a human caller or an LLM.</p> : null}
 
       {/* ---------------- WAITING FOR CALLER ---------------- */}
       {view.phase === 'waiting' ? (
@@ -231,7 +233,7 @@ export default function Room() {
             <p className="kicker mono">VOICE LINE OPEN · RINGING</p>
             <div className="room-code-giant mono tnum">{view.code}</div>
             <p className="waiting-copy">
-              Share this invite link or open a 2nd browser tab/device for instant real-time WebRTC voice chat. Your secret identity (<strong>{view.you.name}</strong>) is locked in.
+              Share this invite link with a different browser profile, private window, or device. Two normal tabs share one identity. Your secret identity (<strong>{view.you.name}</strong>) is locked in.
             </p>
             <div className="waiting-actions">
               <button
@@ -244,11 +246,9 @@ export default function Room() {
               >
                 Copy VC invite link
               </button>
-              <a href={inviteUrl} target="_blank" rel="noreferrer" className="wise-pill wise-pill-soft">
-                Open 2nd caller tab ↗
-              </a>
+              <span className="wise-pill wise-pill-soft">Second caller: use a private window or another browser</span>
               <button type="button" className="wise-pill wise-pill-orange" onClick={() => void switchToSparring()}>
-                🎙️ Call Voice AI Now
+                🎙️ Call scripted practice partner
               </button>
             </div>
           </div>
@@ -661,7 +661,7 @@ export default function Room() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
           {view.messages.length === 0 ? (
             <p style={{ color: 'var(--muted)', fontSize: 14 }}>
-              Spoken lines from the voice call appear here automatically as you talk.
+              Typed notes appear here. Optional CC can add browser-recognized speech; recognition may use your browser vendor.
             </p>
           ) : (
             view.messages.map(m => {
@@ -682,7 +682,7 @@ export default function Room() {
             <input
               value={draft}
               onChange={e => setDraft(e.target.value)}
-              placeholder="No mic? Send a spoken line fallback…"
+              placeholder="Send a typed note…"
               maxLength={1000}
               style={{
                 flex: 1,

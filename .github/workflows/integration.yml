@@ -33,6 +33,8 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
+      - run: npm --prefix ../web ci
+      - run: npm --prefix ../web run build
       - name: Create separate integration database
         run: >-
           node --input-type=module -e 'import pg from "pg";

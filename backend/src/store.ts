@@ -9,6 +9,8 @@ import {
   roundResults,
   transcriptSegments,
   userSettings,
+  voiceRooms,
+  voiceResults,
 } from './db/schema.js';
 import { settleRound } from './ratings.js';
 import { rankTier } from './rubric.js';
@@ -365,6 +367,34 @@ export class GameStore {
     if (anonymousId === accountId) return;
     // A single transaction locks affected rooms in stable order. Never combine two seats.
     await this.db.transaction(async (tx) => {
+      const voice = await tx
+        .select()
+        .from(voiceRooms)
+        .where(
+          sql`${voiceRooms.playerOneId} = ${anonymousId} or ${voiceRooms.playerTwoId} = ${anonymousId}`,
+        )
+        .orderBy(voiceRooms.code)
+        .for('update');
+      for (const row of voice) {
+        if ([row.playerOneId, row.playerTwoId].includes(accountId))
+          throw new GameError(
+            'ACCOUNT_CONFLICT',
+            'That account already occupies a seat in this room.',
+          );
+        await tx
+          .update(voiceRooms)
+          .set({
+            playerOneId:
+              row.playerOneId === anonymousId ? accountId : row.playerOneId,
+            playerTwoId:
+              row.playerTwoId === anonymousId ? accountId : row.playerTwoId,
+          })
+          .where(eq(voiceRooms.code, row.code));
+      }
+      await tx
+        .update(voiceResults)
+        .set({ userId: accountId })
+        .where(eq(voiceResults.userId, anonymousId));
       const affected = await tx
         .select()
         .from(rooms)

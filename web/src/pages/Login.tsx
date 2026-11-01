@@ -1,54 +1,84 @@
-import { FormEvent, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { getProfile, saveProfile } from '../lib/api';
-import { useToast } from '../providers/ToastProvider';
-
+import { FormEvent, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { ensureSession, syncAccount } from "../lib/api";
+import { useSession } from "../providers/SessionProvider";
 export default function Login() {
+  const [email, setEmail] = useState(""),
+    [password, setPassword] = useState(""),
+    [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const existing = getProfile();
-  const [callsign, setCallsign] = useState(existing.callsign);
-  const [ageOk, setAgeOk] = useState(existing.ageConfirmed || false);
-  const [error, setError] = useState('');
-
-  function onSubmit(e: FormEvent) {
+  const { refresh } = useSession();
+  async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!ageOk) {
-      setError('You must confirm you are 13 or older to continue.');
-      return;
+    setBusy(true);
+    setError("");
+    try {
+      const r = await fetch("/api/auth/sign-in/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const body = await r.json();
+      if (!r.ok) throw Error(body.message || "Unable to sign in.");
+      await syncAccount();
+      await refresh();
+      navigate("/play");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to sign in.");
+    } finally {
+      setBusy(false);
     }
-    saveProfile({ callsign: callsign.trim() || 'BLUE-CALLER', ageConfirmed: true });
-    toast('Signed into guest caller session');
-    navigate('/play');
   }
-
   return (
     <div className="auth-shell">
-      <form className="auth-card" onSubmit={onSubmit} noValidate>
-        <p className="kicker mono">CALLER ACCESS · 13+</p>
+      <form className="auth-card" onSubmit={submit}>
+        <p className="kicker mono">CALLER ACCESS</p>
         <h1 className="display auth-title">Welcome back</h1>
-        <p className="auth-sub">PlayCall matches strangers anonymously with zero cameras. Enter your callsign or jump straight in as a guest.</p>
-
-        <div className="flow-input-block">
-          <label htmlFor="login-callsign">Callsign</label>
+        <p className="auth-sub">
+          Sign in to restore your saved profile and rounds.
+        </p>
+        <label className="flow-input-block">
+          Email
           <input
-            id="login-callsign"
-            value={callsign}
-            onChange={e => setCallsign(e.target.value.slice(0, 24))}
-            placeholder="BLUE-FALCON-01"
-            autoComplete="nickname"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
           />
-        </div>
-
-        <label className="flow-consent">
-          <input type="checkbox" checked={ageOk} onChange={e => { setAgeOk(e.target.checked); setError(''); }} />
-          <span>I confirm that I am at least 13 years old and agree to the <Link to="/terms">Terms</Link>.</span>
         </label>
-
-        {error ? <div className="notice notice-danger" role="alert">{error}</div> : null}
-
-        <button type="submit" className="wise-cta-wide">Continue to Command Hub</button>
-        <p className="auth-foot">New here? <Link to="/signup">Create a caller profile</Link></p>
+        <label className="flow-input-block">
+          Password
+          <input
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </label>
+        {error && (
+          <p role="alert" className="notice notice-danger">
+            {error}
+          </p>
+        )}
+        <button className="wise-cta-wide" disabled={busy}>
+          Sign in
+        </button>
+        <button
+          className="btn btn-secondary"
+          type="button"
+          onClick={async () => {
+            await ensureSession();
+            navigate("/play");
+          }}
+        >
+          Continue as guest
+        </button>
+        <p className="auth-foot">
+          New here? <Link to="/signup">Create an account</Link>
+        </p>
       </form>
     </div>
   );

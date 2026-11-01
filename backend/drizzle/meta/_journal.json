@@ -36,6 +36,13 @@
       "when": 1793562215875,
       "tag": "0004_lean_chameleon",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793571160211,
+      "tag": "0005_cynical_hulk",
+      "breakpoints": true
     }
   ]
 }

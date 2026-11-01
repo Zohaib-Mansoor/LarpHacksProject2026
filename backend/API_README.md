@@ -1,5 +1,10 @@
 # PlayCall API
 
+**React realtime VC API:** see [VOICE_INTEGRATION.md](../docs/VOICE_INTEGRATION.md)
+for `/api/vc/*`, cookie-authenticated matchmaking, SSE, signaling, audio fallback,
+and durable 60-point Satellite Deal rooms. The detailed structured scenario API
+below remains available and uses its separate 300-point contract.
+
 The API behind the PlayCall text demo: accounts, private settings, two-player
 rooms, negotiation, chat, saved results, and history.
 

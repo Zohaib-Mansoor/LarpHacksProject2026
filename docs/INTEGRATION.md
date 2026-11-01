@@ -1,5 +1,9 @@
 # Integrated PlayCall app
 
+**Current default frontend:** [VOICE_INTEGRATION.md](VOICE_INTEGRATION.md) documents
+the merged React realtime VC frontend and database adapter. Sections below describe
+the earlier structured text API, which remains available alongside `/api/vc/*`.
+
 ## Architecture
 
 Imported backend: `codex/backend`, commit `969fda7`. Imported visual prototype:

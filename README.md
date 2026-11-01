@@ -4,6 +4,13 @@ Zohaib, Shubhang, Akshit
 
 ## PlayCall
 
+**Merged React voice app: [setup, APIs, matchmaking, and tests](docs/VOICE_INTEGRATION.md).**
+
+The default app is now the React frontend from `supert33/realtime-vc`, connected
+to the PostgreSQL backend from `codex/backend`. It supports invite rooms, durable
+FIFO matchmaking, scripted solo practice, realtime voice, and saved results.
+The text-only integration described below remains available as a separate API.
+
 Two players, secret identities, and five minutes to make a deal. The frontend uses
 the GitHub backend and PostgreSQL: accounts, settings, text rooms, proposals,
 confirmed deals, results, and history persist across restarts.
@@ -16,6 +23,7 @@ confirmed deals, results, and history persist across restarts.
 
 ```powershell
 npm --prefix backend ci
+npm --prefix web ci
 # Create backend/.env and an empty database using the guide above.
 npm run db:migrate
 npm run build
@@ -23,16 +31,15 @@ npm start
 ```
 
 Open http://127.0.0.1:4173/. Create a room, share the invite, and play in two
-independent browser sessions. Default mode uses text and polling; audio,
-WebSockets, and workers are off. Optional Gemini scene generation uses a server-only
+independent browser sessions. React voice rooms use WebRTC with SSE signaling
+and a transient PCM fallback. Optional Gemini scene generation in the separate structured API uses a server-only
 `GEMINI_API_KEY`; the UI also offers explicitly labelled built-in practice.
 
 Checks: `npm run check`, `npm test`, `npm run build`. Browser flow:
 `npm --prefix backend run test:browser` against a running local app.
 
-The imported backend's mission scale is three objectives worth 100 points each
-(300 maximum). The original satellite sample at `/?demo=1` is separate illustrative
-content, with its original 60-point rubric.
+The React Satellite Deal uses three 20-point goals (60 maximum). The separate
+structured scenario API retains its three 100-point goals (300 maximum).
 
 The earlier five-table database and lobby code remain under `src/` and `drizzle/`
 for reference. They are not used by the integrated app. Do not apply both sets of

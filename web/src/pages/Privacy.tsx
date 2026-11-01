@@ -30,7 +30,7 @@ export default function Privacy() {
           read the negotiation and see its result.
         </li>
         <li>Match and deal records — who was matched, what was agreed or not, and mission points earned.</li>
-        <li>Account data (accounts only) — display name, email, and birth date.</li>
+        <li>Account data (accounts only) — private display name and email. Passwords are handled by the authentication library; date of birth is not stored.</li>
       </ul>
       <p>
         Strangers never see your account name or email. In a round you appear only as a server-assigned
@@ -38,10 +38,11 @@ export default function Privacy() {
       </p>
 
       <h2>Live voice audio — zero cameras</h2>
+      <p>Fictional aliases do not anonymize voices. Peer-to-peer connections may expose network addresses to the other participant. The fallback relay passes audio through the app server in memory without recording it.</p>
       <p>
         Multiplayer rounds stream peer-to-peer WebRTC microphone audio directly between the two callers
-        after transient signaling, and solo sparring calls use your browser&apos;s built-in speech
-        recognition and speech synthesis. PlayCall never records or stores raw audio files, and camera
+        after transient signaling. If a direct connection fails, audio can be relayed live through the app server without being saved. Solo sparring uses a labelled scripted partner and browser speech synthesis. Optional CC uses your browser&apos;s built-in speech
+        recognition, which may send audio to the browser vendor for processing. CC is off by default. PlayCall never records or stores raw audio files, and camera
         access is blocked at the HTTP policy level (<code>Permissions-Policy: camera=()</code>).
       </p>
 
@@ -49,7 +50,7 @@ export default function Privacy() {
       <ul>
         <li>You can leave any round at any time.</li>
         <li>You can report a round from the room.</li>
-        <li>Account holders can delete their account — and its data — from the account page.</li>
+        <li>Account settings are saved privately. Account deletion and password recovery are not available in this demo.</li>
       </ul>
 
       <h2>Leaderboard</h2>

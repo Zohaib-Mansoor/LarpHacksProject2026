@@ -19,6 +19,56 @@ import { user } from './auth-schema.js';
 
 export * from './auth-schema.js';
 
+// React voice-room compatibility: gameplay is durable; media is never stored here.
+export const voiceRooms = pgTable(
+  'voice_rooms',
+  {
+    code: text('code').primaryKey(),
+    playerOneId: text('player_one_id')
+      .notNull()
+      .references(() => user.id),
+    playerTwoId: text('player_two_id').references(() => user.id),
+    state: jsonb('state').notNull(),
+    sparring: boolean('sparring').notNull().default(false),
+    queued: boolean('queued').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    index('voice_rooms_queue_idx').on(t.queued, t.createdAt),
+    check(
+      'voice_rooms_distinct_users',
+      sql`${t.playerTwoId} is null or ${t.playerOneId} <> ${t.playerTwoId}`,
+    ),
+  ],
+);
+
+export const voiceResults = pgTable(
+  'voice_results',
+  {
+    code: text('code')
+      .notNull()
+      .references(() => voiceRooms.code),
+    round: integer('round').notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id),
+    points: integer('points').notNull(),
+    confirmed: boolean('confirmed').notNull(),
+    snapshot: jsonb('snapshot').notNull(),
+    callsign: text('callsign'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.code, t.round, t.userId] }),
+    index('voice_results_user_idx').on(t.userId),
+  ],
+);
+
 export const userSettings = pgTable(
   'user_settings',
   {
@@ -32,6 +82,7 @@ export const userSettings = pgTable(
       .default('system'),
     captions: boolean('captions').notNull().default(true),
     reducedMotion: boolean('reduced_motion').notNull().default(false),
+    leaderboardOptIn: boolean('leaderboard_opt_in').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
