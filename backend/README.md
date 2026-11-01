@@ -7,6 +7,8 @@ origin. It uses polling and text chat, with no audio, AI calls, WebSockets, or
 worker loops registered. Accounts, settings, history, messages, and results persist.
 
 See [the integration guide](../docs/INTEGRATION.md) for setup and the active API.
+See [API_README.md](API_README.md) for endpoint contracts, cookie authentication,
+PowerShell examples, polling, and errors.
 The sections below describe the imported experimental backend; its optional media
 and AI routes are not mounted in the default text demo.
 

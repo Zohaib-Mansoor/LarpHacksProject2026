@@ -10,6 +10,8 @@ confirmed deals, results, and history persist across restarts.
 
 **[Setup and API reference](docs/INTEGRATION.md)**
 
+[Detailed API README](backend/API_README.md) · [Live local OpenAPI](http://127.0.0.1:4173/api/openapi.json)
+
 ```powershell
 npm --prefix backend ci
 # Create backend/.env and an empty database using the guide above.
