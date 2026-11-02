@@ -584,6 +584,64 @@ describe('React realtime voice + persistent backend', () => {
         .points,
     ).toBe(40);
   });
+  it.each([500, 550])(
+    'keeps partner totals reciprocal for both users at price %i, including polling, restart, and swapped roles',
+    async (price) => {
+      const { a, b, code } = await pair();
+      const expected =
+        price === 500 ? { alex: 40, morgan: 60 } : { alex: 60, morgan: 40 };
+      const readBoth = async (server = built) => {
+        const responses = await Promise.all(
+          [a, b].map((headers) =>
+            server.app.inject({ url: `/api/vc/room?code=${code}`, headers }),
+          ),
+        );
+        for (const response of responses)
+          expect(response.statusCode, response.body).toBe(200);
+        const views = responses.map((response) => response.json<VoiceView>());
+        for (const [index, own] of views.entries()) {
+          const other = views[1 - index]!;
+          expect(own.result!.scores).toEqual(expected);
+          expect(own.result!.scores[own.you.id]).toBe(
+            own.result!.yours.reduce((sum, points) => sum + points, 0),
+          );
+          expect(own.result!.scores[other.you.id]).toBe(
+            other.result!.yours.reduce((sum, points) => sum + points, 0),
+          );
+          expect(own.peer).toMatchObject({ id: other.you.id });
+        }
+        return views;
+      };
+      for (const round of [1, 2]) {
+        await vc(a, code, { type: 'ready' });
+        await vc(b, code, { type: 'ready' });
+        await vc(a, code, {
+          type: 'propose',
+          deal: { price, package: 'phased' },
+        });
+        await vc(a, code, { type: 'confirm', revision: 1 });
+        await vc(b, code, { type: 'confirm', revision: 1 });
+        for (let poll = 0; poll < 3; poll++) await readBoth();
+        const views = await readBoth();
+        expect(views[0]!.you.id).toBe(round === 1 ? 'alex' : 'morgan');
+        expect(views[1]!.you.id).toBe(round === 1 ? 'morgan' : 'alex');
+        expect(views[0]!.round).toBe(round);
+        await vc(a, code, { type: 'reveal', allow: true });
+        await vc(b, code, { type: 'reveal', allow: true });
+        await readBoth();
+        const restarted = await buildDemoApp({ db, config, clock: () => now });
+        try {
+          await readBoth(restarted);
+        } finally {
+          await restarted.app.close();
+        }
+        if (round === 1) {
+          await vc(a, code, { type: 'rematch' });
+          await vc(b, code, { type: 'rematch' });
+        }
+      }
+    },
+  );
   it('provides a disclosed scripted solo partner', async () => {
     const a = await guest();
     const room = (
