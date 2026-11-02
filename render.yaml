@@ -26,7 +26,8 @@ services:
       - key: RENDER_WORKFLOWS_ENABLED
         value: "true"
       - key: RENDER_WORKFLOW_TASK
-        value: playcall-ratings/rateNegotiation
+        # Copy the actual Workflow Slug from Render; it can include a suffix.
+        sync: false
       - key: BETTER_AUTH_SECRET
         generateValue: true
       - key: DATABASE_URL

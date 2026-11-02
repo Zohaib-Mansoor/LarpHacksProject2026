@@ -11,12 +11,12 @@ stored or logged by application code.
 
 ## Workflow setup
 
-Keep deployment code on `codex/backend`.
+This workspace deploys from `codex/score-render-workspace`.
 
 1. Deploy `render.yaml` to migrate the existing app database, including
    `voice_rating_jobs`.
 2. Create a separate Render Blueprint using `render-workflows.yaml`, selecting
-   `codex/backend`. It registers `playcall-ratings/rateNegotiation` on the Node
+   `codex/score-render-workspace`. It registers `rateNegotiation` on the Node
    runtime. It references the existing database and the web service's private
    Gemini key. It runs no HTTP server and does not run migrations.
 3. Set `ELEVENLABS_API_KEY` privately on the **web service**. Speech is uploaded
@@ -25,9 +25,12 @@ Keep deployment code on `codex/backend`.
 4. Create a Render API key with the narrowest scope Render offers. Store it only
    in the web service's private `RENDER_API_KEY` environment variable. This key can
    confer broader Render account access; review its permissions before creating it.
-5. Set `RENDER_WORKFLOWS_ENABLED=true` and
-   `RENDER_WORKFLOW_TASK=playcall-ratings/rateNegotiation` on the web service, then
-   redeploy. The queue activates only when both the task slug and API key exist.
+5. Copy the **Workflow Slug** from Render and set `RENDER_WORKFLOWS_ENABLED=true`
+   and `RENDER_WORKFLOW_TASK=<actual-workflow-slug>/rateNegotiation` on the web
+   service, then redeploy. Render can append a suffix to the service name when
+   generating this slug. The Blueprint preserves the value you configure rather
+   than assuming the slug is `playcall-ratings`. The queue activates only when
+   both the task slug and API key exist.
 
 The workflow entry point is `backend/src/workflow-entry.ts`. SDK task registration
 does not connect to the database. Each task run creates and closes its own pool.
