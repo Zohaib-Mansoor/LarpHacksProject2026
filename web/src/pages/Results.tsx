@@ -95,11 +95,9 @@ export default function Results() {
 
   const confirmed = !!view.result?.confirmed;
   const pkg = view.packages.find(p => p.id === view.deal?.package);
-  // Both screens must read the same role-indexed server totals. The objective
-  // breakdown remains private and is rendered separately below.
-  const myScore = view.result?.scores?.[view.you.id] ?? null;
+  const myScore = view.result ? view.result.yours.reduce((a, b) => a + b, 0) : 0;
   const peerId = view.peer?.id || (view.you.id === 'alex' ? 'morgan' : 'alex');
-  const peerScore = view.result?.scores?.[peerId] ?? null;
+  const peerScore = view.result?.scores?.[peerId] ?? 0;
 
   async function toggleReveal() {
     if (!token || !view) return;
@@ -160,11 +158,11 @@ export default function Results() {
           <div className="receipt-meta-grid">
             <div>
               <span className="meta-lbl">You</span>
-              <strong>{view.you.name} · {myScore ?? '—'} pts</strong>
+              <strong>{view.you.name} · {myScore} pts</strong>
             </div>
             <div>
               <span className="meta-lbl">Partner</span>
-              <strong>{view.peer?.name || 'Partner'} · {view.result ? `${peerScore ?? '—'} pts` : '—'}</strong>
+              <strong>{view.peer?.name || 'Partner'} · {view.result ? `${peerScore} pts` : '—'}</strong>
             </div>
             <div>
               <span className="meta-lbl">Revision</span>
@@ -183,7 +181,7 @@ export default function Results() {
                   <h2>{view.you.name}</h2>
                 </div>
                 <div className="big-pts display tnum">
-                  <span>{myScore ?? '—'}</span><small>/{rules.missionMax}</small>
+                  <span>{myScore}</span><small>/{rules.missionMax}</small>
                 </div>
               </div>
               <ul className="goal-result-list">
@@ -207,7 +205,7 @@ export default function Results() {
                   <h2>{view.peer?.name || 'Partner'}</h2>
                 </div>
                 <div className="big-pts is-partner display tnum">
-                  {peerScore ?? '—'}<small>/{rules.missionMax}</small>
+                  {peerScore}<small>/{rules.missionMax}</small>
                 </div>
               </div>
 
