@@ -5,7 +5,7 @@ services:
     name: playcall-ratings
     runtime: node
     repo: https://github.com/Zohaib-Mansoor/LarpHacksProject2026
-    branch: main
+    branch: codex/score-render-workspace
     region: ohio
     rootDir: backend
     buildCommand: npm ci --include=dev && npm run build && npm prune --omit=dev
